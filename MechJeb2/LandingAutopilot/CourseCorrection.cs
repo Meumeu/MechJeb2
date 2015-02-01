@@ -11,6 +11,7 @@ namespace MuMech
 
             public CourseCorrection(MechJebCore core) : base(core)
             {
+                core.warp.MinimumWarp();
             }
 
             public override AutopilotStep Drive(FlightCtrlState s)

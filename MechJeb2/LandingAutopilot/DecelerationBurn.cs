@@ -22,7 +22,6 @@ namespace MuMech
                         return new FinalDescent(core);
                     else
                         return new KillHorizontalVelocity(core);
-
                 }
 
                 double decelerationStartTime = (core.landing.prediction.trajectory.Any() ? core.landing.prediction.trajectory.First().UT : vesselState.time);

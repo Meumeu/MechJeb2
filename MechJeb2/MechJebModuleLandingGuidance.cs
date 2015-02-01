@@ -148,6 +148,7 @@ namespace MuMech
 			if (landed != null)
 			{
 				GUILayout.Label("Landing Predictions:");
+				GUILayout.Label("Start burn in " + GuiUtils.TimeToDHMS(predictor.burnUt - Planetarium.GetUniversalTime()));
 				GUILayout.Label(Coordinates.ToStringDMS(landed.landingSite.latitude, landed.landingSite.longitude) + "\nASL:" + MuUtils.ToSI(landed.landingSite.ASL,-1, 4) + "m");
 				GUILayout.Label(ScienceUtil.GetExperimentBiome(landed.landingSite.body, landed.landingSite.latitude, landed.landingSite.longitude));
 				double error = Vector3d.Distance(mainBody.GetRelSurfacePosition(landed.landingSite.latitude, landed.landingSite.longitude, 0),

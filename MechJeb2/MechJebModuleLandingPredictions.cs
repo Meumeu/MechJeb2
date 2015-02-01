@@ -25,7 +25,8 @@ namespace MuMech
 		protected bool simulationRunning { get { return simulator != null && simulator.result == null;}}
         protected long millisecondsBetweenSimulations;
 
-		protected ReentrySimulator simulator = null;
+		public ReentrySimulator simulator = null;
+		public double burnUt;
 
 		public ReentryResult result = null;
 
@@ -53,7 +54,10 @@ namespace MuMech
                 if (vessel.isActiveVessel)
                 {
 					if (simulator != null && simulator.result != null)
+					{
 						result = simulator.result;
+						burnUt = (simulator as BacktrackingReentrySimulator).burnUt;
+					}
                     // We should be running simulations periodically. If one is not running right now,
                     // check if enough time has passed since the last one to start a new one:
                     if (!simulationRunning)
@@ -65,7 +69,7 @@ namespace MuMech
 							if (node != null && node.nextPatch != null)
 								o = node.nextPatch;
 						}
-						simulator = new ReentrySimulator(vessel, o);
+						simulator = new BacktrackingReentrySimulator(vessel, o, 5);
 						simulator.StartSimulation();
                     }
                 }

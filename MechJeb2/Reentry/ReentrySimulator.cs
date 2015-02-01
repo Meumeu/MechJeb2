@@ -113,23 +113,31 @@ namespace MuMech
 			return null;
 		}
 
+		// Must be called in main thread
+		protected void removeUnderground()
+		{
+			while (states.Count > 0 && this.result == null)
+			{
+				var abs = referenceFrame.ToAbsolute(state.pos, state.t);
+				double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);
+				if (abs.radius < mainBody.Radius + alt)
+				{
+					states.RemoveAt(states.Count - 1);
+				}
+				else
+				{
+					return;
+				}
+			}
+		}
+
 		protected virtual void postProcessResult(object result)
 		{
 			if (result is LandedReentryResult)
 			{
-				while (states.Count > 0 && this.result == null)
-				{
-					var abs = referenceFrame.ToAbsolute(state.pos, state.t);
-					double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);
-					if (abs.radius < mainBody.Radius + alt)
-					{
-						states.RemoveAt(states.Count - 1);
-					}
-					else
-					{
-						this.result = new LandedReentryResult(abs, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
-					}
-				}
+				removeUnderground();
+				var abs = referenceFrame.ToAbsolute(state.pos, state.t);
+				this.result = new LandedReentryResult(abs, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
 			}
 			else
 			{

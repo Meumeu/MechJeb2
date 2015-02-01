@@ -314,7 +314,16 @@ namespace MuMech
             lock (callbacks)
             {
                 foreach (var c in callbacks)
-                    c.Key(c.Value);
+                {
+                    try
+                    {
+                        c.Key(c.Value);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
+                }
                 callbacks.Clear();
             }
         }

@@ -5,7 +5,7 @@ namespace MuMech
 {
 	public class TimedBurn : ReentrySimulator.IForceProvider
 	{
-		readonly double startUT;
+		public double startUT;
 		double thrust;
 
 		public TimedBurn (Vessel vessel, double startUT)

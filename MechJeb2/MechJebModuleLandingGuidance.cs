@@ -107,11 +107,6 @@ namespace MuMech
                 {
                     GUILayout.Label("Status: " + core.landing.status);
 
-                    string parachuteInfo = core.landing.ParachuteControlInfo;
-                    if (null != parachuteInfo)
-                    {
-                        GUILayout.Label(parachuteInfo);
-                    }
                 }
             }
 
@@ -149,42 +144,42 @@ namespace MuMech
 
         void DrawGUIPrediction()
         {
-            ReentrySimulation.Result result = predictor.GetResult();
-            if (result != null)
-            {
-                switch (result.outcome)
-                {
-                    case ReentrySimulation.Outcome.LANDED:
-                        GUILayout.Label("Landing Predictions:");
-                        GUILayout.Label(Coordinates.ToStringDMS(result.endPosition.latitude, result.endPosition.longitude) + "\nASL:" + MuUtils.ToSI(result.endASL,-1, 4) + "m");
-                        GUILayout.Label(ScienceUtil.GetExperimentBiome(result.body, result.endPosition.latitude, result.endPosition.longitude));
-                        double error = Vector3d.Distance(mainBody.GetRelSurfacePosition(result.endPosition.latitude, result.endPosition.longitude, 0),
-                                                         mainBody.GetRelSurfacePosition(core.target.targetLatitude, core.target.targetLongitude, 0));
-                        GUILayout.Label("Target difference = " + MuUtils.ToSI(error, 0) + "m"
-                                       +"\nMax drag: " + result.maxDragGees.ToString("F1") +"g"
-                                       +"\nDelta-v needed: " + result.deltaVExpended.ToString("F1") + "m/s"
-                                       +"\nTime to land: " + GuiUtils.TimeToDHMS(result.endUT - Planetarium.GetUniversalTime(), 1));                        
-                        break;
-
-                    case ReentrySimulation.Outcome.AEROBRAKED:
-                        GUILayout.Label("Predicted orbit after aerobraking:");
-                        Orbit o = result.EndOrbit();
-                        if (o.eccentricity > 1) GUILayout.Label("Hyperbolic, eccentricity = " + o.eccentricity.ToString("F2"));
-                        else GUILayout.Label(MuUtils.ToSI(o.PeA, 3) + "m x " + MuUtils.ToSI(o.ApA, 3) + "m");
-                        GUILayout.Label("Max drag: " + result.maxDragGees.ToString("F1") + "g"
-                                       +"\nExit atmosphere in: " + GuiUtils.TimeToDHMS(result.endUT - Planetarium.GetUniversalTime(), 1));                        
-                        break;
-
-                    case ReentrySimulation.Outcome.NO_REENTRY:
-                        GUILayout.Label("Orbit does not reenter:\n"
-                                      + MuUtils.ToSI(orbit.PeA, 3) + "m Pe > " + MuUtils.ToSI(mainBody.RealMaxAtmosphereAltitude(), 3) + "m atmosphere height");
-                        break;
-
-                    case ReentrySimulation.Outcome.TIMED_OUT:
-                        GUILayout.Label("Reentry simulation timed out.");
-                        break;
-                }
-            }
+			LandedReentryResult landed = predictor.result as LandedReentryResult;
+			if (landed != null)
+			{
+				GUILayout.Label("Landing Predictions:");
+				GUILayout.Label(Coordinates.ToStringDMS(landed.landingSite.latitude, landed.landingSite.longitude) + "\nASL:" + MuUtils.ToSI(landed.landingSite.ASL,-1, 4) + "m");
+				GUILayout.Label(ScienceUtil.GetExperimentBiome(landed.landingSite.body, landed.landingSite.latitude, landed.landingSite.longitude));
+				double error = Vector3d.Distance(mainBody.GetRelSurfacePosition(landed.landingSite.latitude, landed.landingSite.longitude, 0),
+					mainBody.GetRelSurfacePosition(core.target.targetLatitude, core.target.targetLongitude, 0));
+				GUILayout.Label("Target difference = " + MuUtils.ToSI(error, 0) + "m"
+					+"\nMax drag: " + 0.ToString("F1") +"g"
+					+"\nDelta-v needed: " + 0.ToString("F1") + "m/s"
+					+"\nTime to land: " + GuiUtils.TimeToDHMS(landed.touchdownTime - Planetarium.GetUniversalTime(), 1));       
+			}
+			AerobrakedReentryResult aerobraked = predictor.result as AerobrakedReentryResult;
+			if (aerobraked != null)
+			{
+				GUILayout.Label("Predicted orbit after aerobraking:");
+				if (aerobraked.orbit.eccentricity > 1)
+					GUILayout.Label("Hyperbolic, eccentricity = " + aerobraked.orbit.eccentricity.ToString("F2"));
+				else
+					GUILayout.Label(MuUtils.ToSI(aerobraked.orbit.PeA, 3) + "m x " + MuUtils.ToSI(aerobraked.orbit.ApA, 3) + "m");
+				GUILayout.Label("Max drag: " + 0.ToString("F1") + "g"
+					+"\nExit atmosphere in: " + GuiUtils.TimeToDHMS(aerobraked.endUt - Planetarium.GetUniversalTime(), 1));        
+			}
+			if (predictor.result is NoReentryResult)
+			{
+				GUILayout.Label("Orbit does not reenter:\n"
+					+ MuUtils.ToSI(orbit.PeA, 3) + "m Pe > " + MuUtils.ToSI(mainBody.RealMaxAtmosphereAltitude(), 3) + "m atmosphere height");
+			}
+			FailedReentryResult failed = predictor.result as FailedReentryResult;
+			if (failed != null)
+			{
+				GUILayout.Label("Reentry simulation failed.");
+				if (failed.message != null)
+					GUILayout.Label(failed.message);
+			}
         }
 
         private void InitLandingSitesList()

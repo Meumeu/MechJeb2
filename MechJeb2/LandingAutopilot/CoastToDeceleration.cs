@@ -41,7 +41,7 @@ namespace MuMech
                 {
                     if (core.landing.ParachutesDeployable())
                     {
-                        core.landing.ControlParachutes();
+						//FIXME: use parachutes
                     }
                 }
 
@@ -86,7 +86,7 @@ namespace MuMech
 
                 if (core.landing.PredictionReady)
                 {
-                    double decelerationStartTime = (core.landing.prediction.trajectory.Any() ? core.landing.prediction.trajectory.First().UT : vesselState.time);
+                    double decelerationStartTime = vesselState.time;
                     Vector3d decelerationStartAttitude = -orbit.SwappedOrbitalVelocityAtUT(decelerationStartTime);
                     decelerationStartAttitude += mainBody.getRFrmVel(orbit.SwappedAbsolutePositionAtUT(decelerationStartTime));
                     decelerationStartAttitude = decelerationStartAttitude.normalized;

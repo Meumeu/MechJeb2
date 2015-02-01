@@ -25,26 +25,7 @@ namespace MuMech
 
                 }
 
-                double decelerationStartTime = (core.landing.prediction.trajectory.Any() ? core.landing.prediction.trajectory.First().UT : vesselState.time);
-                if (decelerationStartTime - vesselState.time > 5)
-                {
-                    core.thrust.targetThrottle = 0;
-
-                    status = "Warping to start of braking burn.";
-
-                    //warp to deceleration start
-                    Vector3d decelerationStartAttitude = -orbit.SwappedOrbitalVelocityAtUT(decelerationStartTime);
-                    decelerationStartAttitude += mainBody.getRFrmVel(orbit.SwappedAbsolutePositionAtUT(decelerationStartTime));
-                    decelerationStartAttitude = decelerationStartAttitude.normalized;
-                    core.attitude.attitudeTo(decelerationStartAttitude, AttitudeReference.INERTIAL, core.landing);
-                    bool warpReady = core.attitude.attitudeAngleFromTarget() < 5;
-
-                    if (warpReady && core.node.autowarp)
-                        core.warp.WarpToUT(decelerationStartTime - 5);
-                    else if (!MuUtils.PhysicsRunning())
-                        core.warp.MinimumWarp();
-                    return this;
-                }
+                //FIXME: warp to deceleration burn
 
                 Vector3d desiredThrustVector = -vesselState.surfaceVelocity.normalized;
 

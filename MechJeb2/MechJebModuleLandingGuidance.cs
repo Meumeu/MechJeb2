@@ -96,6 +96,8 @@ namespace MuMech
 
                 if (core.landing != null) core.node.autowarp = GUILayout.Toggle(core.node.autowarp, "Auto-warp");
 
+                core.landing.rcsCourseCorrection = GUILayout.Toggle(core.landing.rcsCourseCorrection, "Course correction on RCS");
+
                 core.landing.deployGears = GUILayout.Toggle(core.landing.deployGears, "Deploy Landing Gear");
                 GuiUtils.SimpleTextBox("Stage Limit:", core.landing.limitGearsStage, "", 35);
                 core.landing.deployChutes = GUILayout.Toggle(core.landing.deployChutes, "Deploy Parachutes");

@@ -10,6 +10,8 @@ namespace MuMech
         {
             public CoastToDeceleration(MechJebCore core) : base(core)
             {
+                if (core.landing.rcsCourseCorrection)
+                    core.rcs.enabled = true;
             }
 
             public override AutopilotStep Drive(FlightCtrlState s)
@@ -17,15 +19,18 @@ namespace MuMech
                 if (!core.landing.PredictionReady)
                     return this;
 
-                Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
+                if (core.landing.landAtTarget && !core.landing.ParachutesDeployed() && core.landing.rcsCourseCorrection)
+                {
+                    Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
 
-                if (deltaV.magnitude > 3)
-                    core.rcs.enabled = true;
-                else if (deltaV.magnitude < 0.1)
-                    core.rcs.enabled = false;
+                    if (deltaV.magnitude > 3)
+                        core.rcs.enabled = true;
+                    else if (deltaV.magnitude < 0.1)
+                        core.rcs.enabled = false;
 
-                if (core.rcs.enabled)
-                    core.rcs.SetWorldVelocityError(deltaV);
+                    if (core.rcs.enabled)
+                        core.rcs.SetWorldVelocityError(deltaV);
+                }
 
                 return this;
             }
@@ -55,12 +60,14 @@ namespace MuMech
 
                 status = "Coasting toward deceleration burn";
 
-                if (core.landing.landAtTarget)
+                if (core.landing.landAtTarget && !core.landing.ParachutesDeployed())
                 {
                     double currentError = Vector3d.Distance(core.target.GetPositionTargetPosition(), core.landing.LandingSite);
                     if (currentError > 1000)
                     {
-                        if (!vesselState.parachuteDeployed) // However if there is already a parachute deployed, then do not bother trying to correct the course as we will not have any attitude control anyway.
+                        // However if there is already a parachute deployed, then do not bother trying
+                        // to correct the course as we will not have any attitude control anyway.
+                        if (!vesselState.parachuteDeployed)
                         {
                             core.warp.MinimumWarp();
                             core.rcs.enabled = false;
@@ -74,7 +81,8 @@ namespace MuMech
                     }
                 }
 
-                // Sometimes (on bodies with a thick atmosphere) there is no need for a decleration burn. Check for this so that it is possible to transition into the final decent step.
+                // Sometimes (on bodies with a thick atmosphere) there is no need for a deceleration burn.
+                // Check for this so that it is possible to transition into the final decent step.
                 if ((vesselState.altitudeASL < core.landing.DecelerationEndAltitude() + 5) && core.landing.UseAtmosphereToBrake())
                 {
                     core.warp.MinimumWarp();
@@ -82,7 +90,7 @@ namespace MuMech
                 }
 
                 if (core.attitude.attitudeAngleFromTarget() < 1) { warpReady = true; } // less warp start warp stop jumping
-                if (core.attitude.attitudeAngleFromTarget() > 5) { warpReady = false; } // hopefully
+                if (core.attitude.attitudeAngleFromTarget() > 10) { warpReady = false; } // hopefully
 
                 if (core.landing.PredictionReady)
                 {
@@ -91,6 +99,10 @@ namespace MuMech
                     decelerationStartAttitude += mainBody.getRFrmVel(orbit.SwappedAbsolutePositionAtUT(decelerationStartTime));
                     decelerationStartAttitude = decelerationStartAttitude.normalized;
                     core.attitude.attitudeTo(decelerationStartAttitude, AttitudeReference.INERTIAL, core.landing);
+                }
+                else
+                {
+                    core.attitude.attitudeTo(Vector3d.back, AttitudeReference.SURFACE_VELOCITY, core.landing);
                 }
 
                 //Warp at a rate no higher than the rate that would have us impacting the ground 10 seconds from now:

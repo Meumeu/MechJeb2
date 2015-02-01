@@ -32,7 +32,6 @@ namespace MuMech
                 if (currentError < 150)
                 {
                     core.thrust.targetThrottle = 0;
-                    core.rcs.enabled = true;
                     return new CoastToDeceleration(core);
                 }
 

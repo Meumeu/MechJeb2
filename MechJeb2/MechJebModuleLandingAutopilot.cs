@@ -22,6 +22,8 @@ namespace MuMech
         public bool deployChutes = true;
         [Persistent(pass = (int)(Pass.Local | Pass.Type | Pass.Global))]
         public EditableInt limitChutesStage = 0;
+        [Persistent(pass = (int)(Pass.Local | Pass.Type | Pass.Global))]
+        public bool rcsCourseCorrection = false;
 
         // This is used to adjust the height at which the parachutes semi deploy as a means of
         // targeting the landing in an atmosphere where it is not possible to control atitude
@@ -399,7 +401,7 @@ namespace MuMech
         }
 
         // This methods works out if there are any parachutes that have already been deployed (or semi deployed)
-        bool ParachutesDeployed()
+        public bool ParachutesDeployed()
         {
             return vesselState.parachuteDeployed;
         }

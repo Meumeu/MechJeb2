@@ -24,7 +24,7 @@ namespace MuMech
                 {
                     if (core.landing.ParachutesDeployable())
                     {
-                        core.landing.ControlParachutes();
+						//FIXME: use parachutes
                     }
                 }
 

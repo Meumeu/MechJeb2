@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
+using System.Threading;
 using System.Reflection;
 using UnityEngine;
 using KSP.IO;
@@ -17,6 +18,8 @@ namespace MuMech
     {
         private List<ComputerModule> unorderedComputerModules = new List<ComputerModule>();
         private List<ComputerModule> modulesToLoad = new List<ComputerModule>();
+
+        private static List<KeyValuePair<WaitCallback, object>> callbacks = new List<KeyValuePair<WaitCallback, object>>();
 
         private Dictionary<object, IEnumerable<ComputerModule>> sortedModules = new Dictionary<object, IEnumerable<ComputerModule>>();
 
@@ -253,6 +256,15 @@ namespace MuMech
             }
         }
 
+        // Register a function to be called in the main thread (during FixedUpdate)
+        public static void QueueUserWorkItem(WaitCallback callback, object obj = null)
+        {
+            lock (callbacks)
+            {
+                callbacks.Add(new KeyValuePair<WaitCallback, object>(callback, obj));
+            }
+        }
+
         public void FixedUpdate()
         {
             LoadDelayedModules();
@@ -297,6 +309,22 @@ namespace MuMech
                 {
                     Debug.LogError("MechJeb module " + module.GetType().Name + " threw an exception in OnFixedUpdate: " + e);
                 }
+            }
+
+            lock (callbacks)
+            {
+                foreach (var c in callbacks)
+                {
+                    try
+                    {
+                        c.Key(c.Value);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
+                }
+                callbacks.Clear();
             }
         }
 

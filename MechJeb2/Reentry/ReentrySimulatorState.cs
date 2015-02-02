@@ -33,16 +33,13 @@ namespace MuMech
 		// index n contains the dry mass of the previous stages as well
 		private readonly double[] baseMass;
 		// mass of propellants of each part
-		private Dictionary<ResourceIndex, double> resources; 
+		private Dictionary<ResourceIndex, double> resources;
 		public int currentStage;
 
 		public double t;
 
-		public double mass { get
-			{
-				return baseMass[currentStage] + resources.Sum(kv => kv.Value);
-			}
-		}
+		public double mass { get ; private set;}
+
 		public Vector3d pos;
 		public Vector3d vel;
 
@@ -81,7 +78,10 @@ namespace MuMech
 					baseMass[stage] += part.mass;
 
 				foreach (var resource in part.Resources.list)
-					resources[new ResourceIndex(resource.info.id, part)] = resource.amount * resource.info.density;
+				{
+					if (resource.amount * resource.info.density != 0)
+						resources[new ResourceIndex(resource.info.id, part)] = resource.amount * resource.info.density;
+				}
 
 				foreach(var child in part.children)
 					pending.Enqueue(new KeyValuePair<Part, int>(child, stage));
@@ -89,6 +89,13 @@ namespace MuMech
 			this.baseMass = baseMass.ToArray();
 			for (int i = baseMass.Count - 1; i > 0 ; i--)
 				this.baseMass[i-1] += this.baseMass[i];
+
+			updateMass();
+		}
+
+		private void updateMass()
+		{
+			mass = baseMass[currentStage] + resources.Sum(kv => kv.Value);
 		}
 
 		private ReentrySimulatorState() {}
@@ -113,6 +120,7 @@ namespace MuMech
 						res.resources[kv.Key] = Math.Max(0, p - kv.Value * dt);
 					}
 				}
+				updateMass();
 			}
 			return res;
 		}

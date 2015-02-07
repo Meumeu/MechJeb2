@@ -26,8 +26,16 @@ namespace MuMech
         public bool rcsCourseCorrection = false;
 
         //Landing prediction data:
-        MechJebModuleLandingPredictions predictor;
-        public LandedReentryResult prediction;
+        BacktrackingReentrySimulator simulator;
+        public ReentryResult prediction;
+
+        public double BurnUt
+        {
+            get
+            {
+                return simulator == null ? double.NaN : simulator.burnUt;
+            }
+        }
 
         public bool PredictionReady //We shouldn't do any autopilot stuff until this is true
         {
@@ -36,6 +44,7 @@ namespace MuMech
                 return prediction is LandedReentryResult;
             }
         }
+
         double LandingAltitude // The altitude above sea level of the terrain at the landing site
         {
             get
@@ -73,7 +82,7 @@ namespace MuMech
 
         Vector3d RotatedLandingSite // The position where the landing site will be when we land at it
         {
-			get { return (prediction as LandedReentryResult).WorldPosition; }
+            get { return (prediction as LandedReentryResult).WorldPosition; }
         }
 
         public MechJebModuleLandingAutopilot(MechJebCore core) : base(core)
@@ -82,7 +91,6 @@ namespace MuMech
 
         public override void OnStart(PartModule.StartState state)
         {
-            predictor = core.GetComputerModule<MechJebModuleLandingPredictions>();
         }
 
         //public interface:
@@ -91,7 +99,9 @@ namespace MuMech
             landAtTarget = true;
             users.Add(controller);
 
-            predictor.users.Add(this);
+            simulator = new BacktrackingReentrySimulator(vessel, orbit, touchdownSpeed.val);
+            simulator.StartSimulation();
+
             vessel.RemoveAllManeuverNodes(); // For the benefit of the landing predictions module
 
             deployedGears = false;
@@ -114,9 +124,21 @@ namespace MuMech
             setStep(new Landing.UntargetedDeorbit(core));
         }
 
+        public override void OnModuleEnabled()
+        {
+            core.attitude.users.Add(this);
+            core.thrust.users.Add(this);
+        }
+
         public void StopLanding()
         {
             this.users.Clear();
+        }
+
+        public override void OnModuleDisabled()
+        {
+            core.attitude.attitudeDeactivate();
+            simulator = null;
             core.thrust.ThrustOff();
             core.thrust.users.Remove(this);
             core.rcs.enabled = false;
@@ -131,8 +153,29 @@ namespace MuMech
             // If the latest prediction is a landing, aerobrake or no-reentry prediciton then keep it.
             // However if it is any other sort or result it is not much use to us, so do not bother!
 
-            if (predictor.result is LandedReentryResult)
-                prediction = predictor.result as LandedReentryResult;
+            if (simulator == null || simulator.result != null)
+            {
+                if (simulator != null && simulator.result != null)
+                {
+                    if (simulator.result is LandedReentryResult || simulator.result is AerobrakedReentryResult || simulator.result is NoReentryResult)
+                        prediction = simulator.result;
+
+                    Debug.Log("Simulation result available: " + simulator.result);
+                }
+
+                Debug.Log("Starting reentry simulation");
+
+                Orbit o = orbit;
+                if (vessel.patchedConicSolver.maneuverNodes.Count > 0)
+                {
+                    var node = vessel.patchedConicSolver.maneuverNodes.Last(n => n != core.GetComputerModule<MechJebModuleLandingPredictions>().aerobrakeNode);
+                    if (node != null && node.nextPatch != null)
+                        o = node.nextPatch;
+                }
+                simulator = new BacktrackingReentrySimulator(vessel, orbit, touchdownSpeed.val);
+                simulator.StartSimulation();
+                Debug.Log("Reentry simulation started");
+            }
 
             // Consider lowering the langing gear
             {
@@ -148,22 +191,6 @@ namespace MuMech
         {
             base.OnFixedUpdate();
             DeployParachutes();
-        }
-
-        public override void OnModuleEnabled()
-        {
-            core.attitude.users.Add(this);
-            core.thrust.users.Add(this);
-        }
-
-        public override void OnModuleDisabled()
-        {
-            core.attitude.attitudeDeactivate();
-            predictor.users.Remove(this);
-            core.thrust.ThrustOff();
-            core.thrust.users.Remove(this);
-            core.rcs.enabled = false;
-            setStep(null);
         }
 
         // Estimate the delta-V of the correction burn that would be required to put us on
@@ -212,7 +239,7 @@ namespace MuMech
             // into a position. We can't just get the current position of those coordinates, because the planet will
             // rotate during the descent, so we have to account for that.
             Vector3d desiredLandingPosition = mainBody.GetRelSurfacePosition(core.target.targetLatitude, core.target.targetLongitude, 0);
-            float bodyRotationAngleDuringDescent = (float)(360 * (prediction.touchdownTime - vesselState.time) / mainBody.rotationPeriod);
+            float bodyRotationAngleDuringDescent = (float)(360 * ((prediction as LandedReentryResult).touchdownTime - vesselState.time) / mainBody.rotationPeriod);
             Quaternion bodyRotationDuringFall = Quaternion.AngleAxis(bodyRotationAngleDuringDescent, mainBody.angularVelocity.normalized);
             desiredLandingPosition = bodyRotationDuringFall * desiredLandingPosition;
 
@@ -400,18 +427,9 @@ namespace MuMech
             return orbit.PeA < 2 * stoppingDistance + mainBody.Radius / 4;
         }
 
-		[Obsolete]
-        public double MaxAllowedSpeed()
+        public double MinAltitude()
         {
-			//FIXME: do not use this anymore
-			return double.MaxValue;
-        }
-
-		[Obsolete]
-        public double MaxAllowedSpeedAfterDt(double dt)
-		{
-			//FIXME: do not use this anymore
-			return double.MaxValue;
+            return Math.Min(vesselState.altitudeBottom, Math.Min(vesselState.altitudeASL, vesselState.altitudeTrue));
         }
     }
 }

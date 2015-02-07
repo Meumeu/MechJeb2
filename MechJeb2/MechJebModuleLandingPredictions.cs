@@ -21,19 +21,17 @@ namespace MuMech
         public double parachuteSemiDeployMultiplier = 3; // this will get updated by the autopilot.
 
         //internal data:
-      
-		protected bool simulationRunning { get { return simulator != null && simulator.result == null;}}
-        protected long millisecondsBetweenSimulations;
+        private bool simulationRunning { get { return simulator != null && simulator.result == null;}}
+        private long millisecondsBetweenSimulations;
 
-		public ReentrySimulator simulator = null;
-		public double burnUt;
+        public ReentrySimulator simulator = null;
 
-		public ReentryResult result = null;
+        public ReentryResult result = null;
 
         public ManeuverNode aerobrakeNode = null;
 
-        protected const int interationsPerSecond = 5; // the number of times that we want to try to run the simulation each second.
-        protected double dt = 0.2; // the suggested dt for each timestep in the simulations. This will be adjusted depending on how long the simulations take to run.
+        private const int interationsPerSecond = 5; // the number of times that we want to try to run the simulation each second.
+        private double dt = 0.2; // the suggested dt for each timestep in the simulations. This will be adjusted depending on how long the simulations take to run.
 
         public override void OnStart(PartModule.StartState state)
         {
@@ -56,7 +54,7 @@ namespace MuMech
 					if (simulator != null && simulator.result != null)
 					{
 						result = simulator.result;
-						burnUt = (simulator as BacktrackingReentrySimulator).burnUt;
+						//burnUt = (simulator as BacktrackingReentrySimulator).burnUt;
 					}
                     // We should be running simulations periodically. If one is not running right now,
                     // check if enough time has passed since the last one to start a new one:
@@ -69,7 +67,7 @@ namespace MuMech
 							if (node != null && node.nextPatch != null)
 								o = node.nextPatch;
 						}
-						simulator = new BacktrackingReentrySimulator(vessel, o, 5);
+						simulator = new ReentrySimulator(vessel, o);
 						simulator.StartSimulation();
                     }
                 }
@@ -88,7 +86,7 @@ namespace MuMech
             }
         }
 
-        protected Orbit GetReenteringPatch()
+        private Orbit GetReenteringPatch()
         {
             Orbit patch = orbit;
 
@@ -117,7 +115,7 @@ namespace MuMech
             return null;
         }
 
-        protected void MaintainAerobrakeNode()
+        private void MaintainAerobrakeNode()
         {
             if (makeAerobrakeNodes)
             {

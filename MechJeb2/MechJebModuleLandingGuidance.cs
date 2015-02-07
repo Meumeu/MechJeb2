@@ -146,21 +146,26 @@ namespace MuMech
 
         void DrawGUIPrediction()
         {
-			LandedReentryResult landed = predictor.result as LandedReentryResult;
+            ReentryResult result = core.landing.enabled  && core.landing.prediction != null ? core.landing.prediction : predictor.result;
+            double burnUt = core.landing.BurnUt;
+
+			LandedReentryResult landed = result as LandedReentryResult;
 			if (landed != null)
 			{
 				GUILayout.Label("Landing Predictions:");
-				GUILayout.Label("Start burn in " + GuiUtils.TimeToDHMS(predictor.burnUt - Planetarium.GetUniversalTime()));
+                if (!double.IsNaN(burnUt))
+                    GUILayout.Label("Start burn in " + GuiUtils.TimeToDHMS(burnUt - Planetarium.GetUniversalTime(), 1));
 				GUILayout.Label(Coordinates.ToStringDMS(landed.landingSite.latitude, landed.landingSite.longitude) + "\nASL:" + MuUtils.ToSI(landed.landingSite.ASL,-1, 4) + "m");
 				GUILayout.Label(ScienceUtil.GetExperimentBiome(landed.landingSite.body, landed.landingSite.latitude, landed.landingSite.longitude));
 				double error = Vector3d.Distance(mainBody.GetRelSurfacePosition(landed.landingSite.latitude, landed.landingSite.longitude, 0),
 					mainBody.GetRelSurfacePosition(core.target.targetLatitude, core.target.targetLongitude, 0));
 				GUILayout.Label("Target difference = " + MuUtils.ToSI(error, 0) + "m"
 					+"\nMax drag: " + 0.ToString("F1") +"g"
-					+"\nDelta-v needed: " + 0.ToString("F1") + "m/s"
+					//+"\nDelta-v needed: " + 0.ToString("F1") + "m/s" // FIXME
 					+"\nTime to land: " + GuiUtils.TimeToDHMS(landed.touchdownTime - Planetarium.GetUniversalTime(), 1));       
 			}
-			AerobrakedReentryResult aerobraked = predictor.result as AerobrakedReentryResult;
+
+			AerobrakedReentryResult aerobraked = result as AerobrakedReentryResult;
 			if (aerobraked != null)
 			{
 				GUILayout.Label("Predicted orbit after aerobraking:");
@@ -171,12 +176,14 @@ namespace MuMech
 				GUILayout.Label("Max drag: " + 0.ToString("F1") + "g"
 					+"\nExit atmosphere in: " + GuiUtils.TimeToDHMS(aerobraked.endUt - Planetarium.GetUniversalTime(), 1));        
 			}
-			if (predictor.result is NoReentryResult)
+
+			if (result is NoReentryResult)
 			{
 				GUILayout.Label("Orbit does not reenter:\n"
 					+ MuUtils.ToSI(orbit.PeA, 3) + "m Pe > " + MuUtils.ToSI(mainBody.RealMaxAtmosphereAltitude(), 3) + "m atmosphere height");
 			}
-			FailedReentryResult failed = predictor.result as FailedReentryResult;
+
+			FailedReentryResult failed = result as FailedReentryResult;
 			if (failed != null)
 			{
 				GUILayout.Label("Reentry simulation failed.");

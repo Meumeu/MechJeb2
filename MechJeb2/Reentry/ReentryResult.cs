@@ -21,6 +21,11 @@ namespace MuMech
 			}
 		}
 		private ReferenceFrame frame;
+
+        public override string ToString()
+        {
+            return string.Format("LandedReentryResult: {0}", Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude));
+        }
 	}
 
 	public class AerobrakedReentryResult : ReentryResult
@@ -50,7 +55,12 @@ namespace MuMech
 		{
 			this.message = e.Message;// + "\n" + e.StackTrace;
 		}
-		public string message;
+        public string message;
+
+        public override string ToString()
+        {
+            return string.Format("FailedReentryResult: {0}", message);
+        }
 	}
 
 	public class NoReentryResult : ReentryResult

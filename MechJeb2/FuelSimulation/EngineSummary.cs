@@ -60,14 +60,16 @@ namespace MuMech
 			return flow;
 		}
 
-		public void updateTanks (Dictionary<Part,FuelContainer> availableNodes)
+		public void updateTanks (FuelContainer.FuelSummary fuels)
 		{
+			if (! fuels.stateChanged)
+				return;
 			// For each relevant propellant, get the list of tanks the engine will drain resources
 			resources = propellants.FindAll (
 				prop => PartResourceLibrary.Instance.GetDefinition (prop.id).density > 0 && prop.name != "IntakeAir")
 					.ToDictionary (
 				prop => prop,
-				prop => availableNodes[part].GetTanks (prop.id, availableNodes, new HashSet<Part> ()));
+					prop => fuels.nodes[part].GetTanks (prop.id, fuels.nodes, new HashSet<Part> ()));
 
 			depleted = resources.Any(p => p.Value.Count == 0);
 		}

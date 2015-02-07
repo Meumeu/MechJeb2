@@ -8,7 +8,7 @@ namespace MuMech
 
 		public BacktrackingReentrySimulator(Vessel vessel, Orbit orbit, double targetTouchDownSpeed) : base(vessel, orbit)
 		{
-			engineForce = new TimedBurn(vessel, double.MaxValue);
+			engineForce = new TimedBurn(vessel, double.MaxValue, 0.95f);
 			forces.Add(engineForce);
 			this.targetTouchDownSpeed = targetTouchDownSpeed;
 			minUt = orbit.StartUT;
@@ -43,7 +43,7 @@ namespace MuMech
 			if (state.t > engineForce.startUT && Vector3d.Dot(state.pos, state.vel) >= 0)
 			{
 				var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-				return new LandedReentryResult(pos, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
+                return new LandedReentryResult(states, referenceFrame, burnUt);
 			}
 
 			if (state.t > minUt + maxDuration)
@@ -65,7 +65,7 @@ namespace MuMech
 				if (maxUt - minUt <= dt)
 				{
 					var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-					this.result = new LandedReentryResult(pos, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
+                    this.result = new LandedReentryResult(states, referenceFrame, burnUt);
 					return;
 				}
 				burnUt = (maxUt + minUt)/2;
@@ -84,7 +84,7 @@ namespace MuMech
 				if (delay <= dt)
 				{
 					var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-					this.result = new LandedReentryResult(pos, state.t, 0, referenceFrame);
+                    this.result = new LandedReentryResult(states, referenceFrame, burnUt);
 					return;
 				}
 				burnUt += delay;

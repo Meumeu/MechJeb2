@@ -146,7 +146,7 @@ namespace MuMech
 
         void DrawGUIPrediction()
         {
-            ReentryResult result = core.landing.enabled  && core.landing.prediction != null ? core.landing.prediction : predictor.result;
+            ReentryResult result = core.landing.enabled && core.landing.prediction != null ? core.landing.prediction : predictor.result;
             double burnUt = core.landing.BurnUt;
 
 			LandedReentryResult landed = result as LandedReentryResult;

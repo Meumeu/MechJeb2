@@ -19,14 +19,15 @@ namespace MuMech
                     core.warp.MinimumWarp();
 
                     if (core.landing.UseAtmosphereToBrake())
-                        return new FinalDescent(core);
+                        return new FinalDescent(core, null, null); // FIXME: get a trajectory
                     else
-                        return new KillHorizontalVelocity(core);
+                        return new KillHorizontalVelocity(core); // FIXME
                 }
 
-                //FIXME: warp to deceleration burn
+                // FIXME: warp to deceleration burn
+                // FIXME: use the reentry simulator
 
-                Vector3d desiredThrustVector = -vesselState.surfaceVelocity.normalized;
+                /* Vector3d desiredThrustVector = -vesselState.surfaceVelocity.normalized;
 
                 Vector3d courseCorrection = core.landing.ComputeCourseCorrection(false);
                 double correctionAngle = courseCorrection.magnitude / (2.0 * vesselState.limitedMaxThrustAccel);
@@ -55,7 +56,7 @@ namespace MuMech
                 }
 
                 core.attitude.attitudeTo(desiredThrustVector, AttitudeReference.INERTIAL, core.landing);
-
+*/
                 return this;
             }
         }

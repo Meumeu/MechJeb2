@@ -70,7 +70,9 @@ namespace MuMech
                 if (!double.IsNaN(core.landing.BurnUt) && core.landing.BurnUt < Planetarium.GetUniversalTime() + 5)
                 {
                     core.warp.MinimumWarp();
-                    return new FinalDescent(core);
+                    return new FinalDescent(core,
+                        (core.landing.prediction as LandedReentryResult).trajectory,
+                        (core.landing.prediction as LandedReentryResult).frame);
                 }
 
                 if (core.attitude.attitudeAngleFromTarget() < 1) { warpReadyAttitudeControl = true; } // less warp start warp stop jumping

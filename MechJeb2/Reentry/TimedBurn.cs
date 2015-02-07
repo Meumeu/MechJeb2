@@ -26,12 +26,11 @@ namespace MuMech
 			if (st.t < startUT)
 				return new dState(Vector3d.zero);
 			// FIXME: maybe we should actually use fuel when we turn on the engines
-			Vector3d svel = ReentrySimulator.SurfaceVelocity(st.pos, st.vel, mainBody).normalized;
-			if (Vector3d.Dot(svel, st.pos) < 0 )
+			Vector3d svel = ReentrySimulator.SurfaceVelocity(st.pos, st.vel, mainBody);
+			if (Vector3d.Dot(svel, st.pos) < 0 && svel.sqrMagnitude > 1)
 				return new dState( -svel.normalized * thrust);
 			// Well, we are going up... just panic and keep going up
 			return new dState(st.pos.normalized * thrust);
 		}
 	}
 }
-

@@ -47,6 +47,7 @@ namespace MuMech
 					integrationStep();
 					result = postStep();
 				}
+
 				MechJebCore.QueueUserWorkItem(postProcessResult, result);
 			}
 			catch(System.Exception e)
@@ -59,7 +60,7 @@ namespace MuMech
 
 		protected List<ReentrySimulatorState> states;
 		protected double minSimulationUt;
-		protected ReentrySimulatorState state { get { return states.Last();}}
+		protected ReentrySimulatorState state { get { return states.Last(); } }
 
 		protected double dt = 0.02;
 
@@ -154,7 +155,6 @@ namespace MuMech
 		{
 			return SurfaceVelocity(pos, vel, mainBody);
 		}
-
 	}
 }
 

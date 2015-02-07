@@ -80,7 +80,8 @@ namespace MuMech
                     thrustDirection = (thrustDirection + angleCorrection).normalized;
 
                     double rangeToLandingSite = Vector3d.Exclude(vesselState.up, core.landing.LandingSite - vesselState.CoM).magnitude;
-                    double maxAllowedSpeed = core.landing.MaxAllowedSpeed();
+                    // FIXME
+                    // double maxAllowedSpeed = core.landing.MaxAllowedSpeed();
 
                     if (!lowDeorbitEndConditionSet && Vector3d.Distance(core.landing.LandingSite, vesselState.CoM) < mainBody.Radius + vesselState.altitudeASL)
                     {
@@ -100,13 +101,14 @@ namespace MuMech
                                 return new DecelerationBurn(core);
                             }
 
-                            double maxAllowedSpeedAfterDt = core.landing.MaxAllowedSpeedAfterDt(vesselState.deltaT);
-                            double speedAfterDt = vesselState.speedSurface + vesselState.deltaT * Vector3d.Dot(vesselState.gravityForce, vesselState.surfaceVelocity.normalized);
-                            double throttleToMaintainLandingSite;
-                            if (vesselState.speedSurface < maxAllowedSpeed) throttleToMaintainLandingSite = 0;
-                            else throttleToMaintainLandingSite = (speedAfterDt - maxAllowedSpeedAfterDt) / (vesselState.deltaT * vesselState.maxThrustAccel);
+                            // FIXME
+                            // double maxAllowedSpeedAfterDt = core.landing.MaxAllowedSpeedAfterDt(vesselState.deltaT);
+                            // double speedAfterDt = vesselState.speedSurface + vesselState.deltaT * Vector3d.Dot(vesselState.gravityForce, vesselState.surfaceVelocity.normalized);
+                            // double throttleToMaintainLandingSite;
+                            // if (vesselState.speedSurface < maxAllowedSpeed) throttleToMaintainLandingSite = 0;
+                            // else throttleToMaintainLandingSite = (speedAfterDt - maxAllowedSpeedAfterDt) / (vesselState.deltaT * vesselState.maxThrustAccel);
 
-                            lowDeorbitBurnMaxThrottle = throttleToMaintainLandingSite + 1 * (rangeToLandingSite / rangeToTarget - 1) + 0.2;
+                            // lowDeorbitBurnMaxThrottle = throttleToMaintainLandingSite + 1 * (rangeToLandingSite / rangeToTarget - 1) + 0.2;
                         }
                         else
                         {

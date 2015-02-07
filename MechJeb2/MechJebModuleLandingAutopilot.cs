@@ -28,12 +28,13 @@ namespace MuMech
         //Landing prediction data:
         BacktrackingReentrySimulator simulator;
         public ReentryResult prediction;
+        public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
 
         public double BurnUt
         {
             get
             {
-                return simulator == null ? double.NaN : simulator.burnUt;
+                return PredictionReady ? (prediction as LandedReentryResult).burnUt : double.NaN;
             }
         }
 

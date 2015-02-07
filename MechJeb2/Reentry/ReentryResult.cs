@@ -1,8 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MuMech
 {
 	public class ReentryResult {}
+
+	public struct TrajectoryPoint
+	{
+		public AbsoluteVector pos;
+		public AbsoluteVector svel;
+	}
 
 	public class LandedReentryResult : ReentryResult
 	{
@@ -12,20 +19,47 @@ namespace MuMech
 			this.touchdownTime = endUt;
 			this.touchdownSpeed = speed;
 			this.frame = frame;
+			this.burnUt = double.NaN;
 		}
+
+		public LandedReentryResult(List<ReentrySimulatorState> states, ReferenceFrame frame, double burnUt)
+		{
+			var lastState = states[states.Count - 1];
+			this.landingSite = frame.ToAbsolute(lastState.pos, lastState.t);
+			this.touchdownTime = lastState.t;
+			this.touchdownSpeed = ReentrySimulator.SurfaceVelocity(lastState.pos, lastState.vel, frame.referenceBody).magnitude;
+			this.frame = frame;
+			this.burnUt = burnUt;
+
+			trajectory = new List<TrajectoryPoint>();
+			foreach (ReentrySimulatorState i in states)
+			{
+				if (i.t >= burnUt)
+				{
+					TrajectoryPoint item;
+					item.pos = frame.ToAbsolute(i.pos, i.t);
+					item.svel = frame.ToAbsolute(ReentrySimulator.SurfaceVelocity(i.pos, i.vel, frame.referenceBody), i.t);
+					trajectory.Add(item);
+				}
+			}
+		}
+
 		public AbsoluteVector landingSite;
 		public double touchdownTime;
+		public double burnUt;
 		public double touchdownSpeed;
 		public Vector3d WorldPosition { get {
 				return frame.WorldPositionAtCurrentTime(landingSite);
 			}
 		}
-		private ReferenceFrame frame;
 
-        public override string ToString()
-        {
-            return string.Format("LandedReentryResult: {0}", Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude));
-        }
+		public readonly ReferenceFrame frame;
+		public List<TrajectoryPoint> trajectory;
+
+		public override string ToString()
+		{
+			return string.Format("LandedReentryResult: {0}", Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude));
+		}
 	}
 
 	public class AerobrakedReentryResult : ReentryResult
@@ -55,12 +89,12 @@ namespace MuMech
 		{
 			this.message = e.Message;// + "\n" + e.StackTrace;
 		}
-        public string message;
+		public string message;
 
-        public override string ToString()
-        {
-            return string.Format("FailedReentryResult: {0}", message);
-        }
+		public override string ToString()
+		{
+			return string.Format("FailedReentryResult: {0}", message);
+		}
 	}
 
 	public class NoReentryResult : ReentryResult
@@ -112,7 +146,7 @@ namespace MuMech
 		private readonly Vector3d lat0lon0AtStart;
 		private readonly Vector3d lat0lon90AtStart;
 		private readonly Vector3d lat90AtStart;
-		private readonly CelestialBody referenceBody;
+		public readonly CelestialBody referenceBody;
 
 		public ReferenceFrame(CelestialBody referenceBody)
 		{

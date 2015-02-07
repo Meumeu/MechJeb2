@@ -22,7 +22,7 @@ namespace MuMech
                 {
                     core.thrust.targetThrottle = 0;
                     core.attitude.attitudeTo(Vector3.up, AttitudeReference.SURFACE_NORTH, core.landing);
-                    return new FinalDescent(core);
+                    return new FinalDescent(core, null, null); // FIXME: get a trajectory
                 }
 
                 //control thrust to control vertical speed:

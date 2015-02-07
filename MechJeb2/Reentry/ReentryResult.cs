@@ -19,34 +19,28 @@ namespace MuMech
 			this.touchdownTime = endUt;
 			this.touchdownSpeed = speed;
 			this.frame = frame;
-			this.burnUt = double.NaN;
 		}
 
-		public LandedReentryResult(List<ReentrySimulatorState> states, ReferenceFrame frame, double burnUt)
+		public LandedReentryResult(List<ReentrySimulatorState> states, ReferenceFrame frame)
 		{
 			var lastState = states[states.Count - 1];
 			this.landingSite = frame.ToAbsolute(lastState.pos, lastState.t);
 			this.touchdownTime = lastState.t;
 			this.touchdownSpeed = ReentrySimulator.SurfaceVelocity(lastState.pos, lastState.vel, frame.referenceBody).magnitude;
 			this.frame = frame;
-			this.burnUt = burnUt;
 
 			trajectory = new List<TrajectoryPoint>();
 			foreach (ReentrySimulatorState i in states)
 			{
-				if (i.t >= burnUt)
-				{
-					TrajectoryPoint item;
-					item.pos = frame.ToAbsolute(i.pos, i.t);
-					item.svel = frame.ToAbsolute(ReentrySimulator.SurfaceVelocity(i.pos, i.vel, frame.referenceBody), i.t);
-					trajectory.Add(item);
-				}
+				TrajectoryPoint item;
+				item.pos = frame.ToAbsolute(i.pos, i.t);
+				item.svel = frame.ToAbsolute(ReentrySimulator.SurfaceVelocity(i.pos, i.vel, frame.referenceBody), i.t);
+				trajectory.Add(item);
 			}
 		}
 
 		public AbsoluteVector landingSite;
 		public double touchdownTime;
-		public double burnUt;
 		public double touchdownSpeed;
 		public Vector3d WorldPosition { get {
 				return frame.WorldPositionAtCurrentTime(landingSite);
@@ -58,9 +52,8 @@ namespace MuMech
 
 		public override string ToString()
 		{
-            return string.Format("LandedReentryResult: {0}, burn UT={1}",
-                Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude),
-                GuiUtils.TimeToDHMS(burnUt));
+			return string.Format("LandedReentryResult: {0}",
+				Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude));
 		}
 	}
 

@@ -28,23 +28,16 @@ namespace MuMech
         //Landing prediction data:
         BacktrackingReentrySimulator simulator;
         public ReentryResult prediction;
+        public double BurnUt = double.NaN;
         public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
 
         MechJebModuleLandingPredictions predictor;
-
-        public double BurnUt
-        {
-            get
-            {
-                return (prediction as LandedReentryResult).burnUt;
-            }
-        }
 
         public bool LandingBurnReady
         {
             get
             {
-                return prediction is LandedReentryResult && !double.IsNaN((prediction as LandedReentryResult).burnUt);
+                return !double.IsNaN(BurnUt);
             }
         }
 
@@ -148,6 +141,8 @@ namespace MuMech
         {
             core.attitude.attitudeDeactivate();
             simulator = null;
+            BurnUt = double.NaN;
+            prediction = null;
             core.thrust.ThrustOff();
             core.thrust.users.Remove(this);
             core.rcs.enabled = false;
@@ -170,6 +165,7 @@ namespace MuMech
                     {
                         prediction = simulator.result;
                         predictor.result = simulator.result;
+                        BurnUt = simulator.burnUt;
                     }
 
                     Debug.Log("Simulation result available: " + simulator.result);

@@ -52,7 +52,8 @@ namespace MuMech
 				return new FailedReentryResult("Fuel finished");
 			if (state.t > engineForce.startUT && Vector3d.Dot(state.pos, state.vel) >= 0)
 			{
-				return new LandedReentryResult(states, referenceFrame, burnUt);
+				// The result is ignored, as we make a new one in postProcessResult
+				return new FailedReentryResult("");
 			}
 
 			return base.postStep ();
@@ -72,7 +73,7 @@ namespace MuMech
 				minUt = burnUt;
 				if (maxUt - minUt <= dt)
 				{
-					this.result = new LandedReentryResult(states, referenceFrame, burnUt);
+					this.result = new LandedReentryResult(states, referenceFrame);
 					return;
 				}
 				burnUt = (maxUt + minUt)/2;
@@ -90,7 +91,7 @@ namespace MuMech
 					delay = (maxUt - minUt) / 2;
 				if (delay <= dt)
 				{
-					this.result = new LandedReentryResult(states, referenceFrame, burnUt);
+					this.result = new LandedReentryResult(states, referenceFrame);
 					return;
 				}
 				burnUt += delay;
@@ -104,7 +105,7 @@ namespace MuMech
 			var svel = SurfaceVelocity(state.pos, state.vel);
 			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || maxUt - minUt <= dt)
 			{
-				this.result = new LandedReentryResult(states, referenceFrame, burnUt);
+				this.result = new LandedReentryResult(states, referenceFrame);
 				return;
 			}
 			burnUt = (maxUt + minUt)/2;

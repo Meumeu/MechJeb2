@@ -146,7 +146,7 @@ namespace MuMech
 		{
 			try
 			{
-				postProcessResultWrapper(result);
+				postProcessResult(result);
 			}
 			catch (System.Exception e)
 			{

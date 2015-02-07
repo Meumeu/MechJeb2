@@ -10,12 +10,12 @@ namespace MuMech
         {
             public CoastToDeceleration(MechJebCore core) : base(core)
             {
-                if (core.landing.rcsCourseCorrection)
+                if (core.landing.rcsCourseCorrection && core.landing.landAtTarget)
                     core.rcs.enabled = true;
             }
 
-            bool warpReadyAttitudeControl;
-            bool warpReadyCourseCorrection;
+            bool warpReadyAttitudeControl = true;
+            bool warpReadyCourseCorrection = true;
 
             public override AutopilotStep OnFixedUpdate()
             {
@@ -28,15 +28,6 @@ namespace MuMech
                     {
 						//FIXME: use parachutes
                     }
-                }
-
-                // FIXME: check when the deceleration burn whould start
-                double maxAllowedSpeed = core.landing.MaxAllowedSpeed();
-                if (vesselState.speedSurface > 0.9 * maxAllowedSpeed)
-                {
-                    core.warp.MinimumWarp();
-                    core.rcs.enabled = false;
-                    return new DecelerationBurn(core);
                 }
 
                 status = "Coasting toward deceleration burn";
@@ -75,9 +66,8 @@ namespace MuMech
                     }
                 }
 
-                // Sometimes (on bodies with a thick atmosphere) there is no need for a deceleration burn.
-                // Check for this so that it is possible to transition into the final decent step.
-                if ((vesselState.altitudeASL < core.landing.DecelerationEndAltitude() + 5) && core.landing.UseAtmosphereToBrake())
+                // Transition into the final decent step 5s before the suicide burn
+                if (!double.IsNaN(core.landing.BurnUt) && core.landing.BurnUt < Planetarium.GetUniversalTime() + 5)
                 {
                     core.warp.MinimumWarp();
                     return new FinalDescent(core);
@@ -86,24 +76,16 @@ namespace MuMech
                 if (core.attitude.attitudeAngleFromTarget() < 1) { warpReadyAttitudeControl = true; } // less warp start warp stop jumping
                 if (core.attitude.attitudeAngleFromTarget() > 10) { warpReadyAttitudeControl = false; } // hopefully
 
-                /*if (core.landing.PredictionReady)
-                {
-                    double decelerationStartTime = vesselState.time;
-                    Vector3d decelerationStartAttitude = -orbit.SwappedOrbitalVelocityAtUT(decelerationStartTime);
-                    decelerationStartAttitude += mainBody.getRFrmVel(orbit.SwappedAbsolutePositionAtUT(decelerationStartTime));
-                    decelerationStartAttitude = decelerationStartAttitude.normalized;
-                    core.attitude.attitudeTo(decelerationStartAttitude, AttitudeReference.INERTIAL, core.landing);
-                }
-                else*/
-                {
-                    core.attitude.attitudeTo(Vector3d.back, AttitudeReference.SURFACE_VELOCITY, core.landing);
-                }
+                core.attitude.attitudeTo(Vector3d.back, AttitudeReference.SURFACE_VELOCITY, core.landing);
 
-                //Warp at a rate no higher than the rate that would have us impacting the ground 10 seconds from now:
-                if (warpReadyAttitudeControl && warpReadyCourseCorrection && core.node.autowarp)
-                    core.warp.WarpRegularAtRate((float)(vesselState.altitudeASL / (10 * Math.Abs(vesselState.speedVertical))));
-                else
-                    core.warp.MinimumWarp();
+                // Warp at a rate no higher than the rate that would have us start the burn 10 seconds from now:
+                if (core.node.autowarp)
+                {
+                    if (warpReadyAttitudeControl && warpReadyCourseCorrection && !double.IsNaN(core.landing.BurnUt))
+                        core.warp.WarpRegularAtRate((float)(core.landing.BurnUt - Planetarium.GetUniversalTime()) / 10);
+                    else
+                        core.warp.MinimumWarp();
+                }
 
                 return this;
             }

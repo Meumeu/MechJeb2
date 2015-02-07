@@ -33,6 +33,14 @@ namespace MuMech
 			return FlightGlobals.getStaticPressure(pos.magnitude - mainBody.Radius, mainBody);
 		}
 
+		public void forceEngineUpdate(ReentrySimulatorState st)
+		{
+			foreach (var e in engines)
+			{
+				e.updateTanks(st.resources, true);
+			}
+		}
+
 		public dState ComputeForce(ReentrySimulatorState st, CelestialBody mainBody)
 		{
 			depleted = false;

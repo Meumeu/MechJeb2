@@ -60,9 +60,9 @@ namespace MuMech
 			return flow;
 		}
 
-		public void updateTanks (FuelContainer.FuelSummary fuels)
+		public void updateTanks (FuelContainer.FuelSummary fuels, bool force = false)
 		{
-			if (! fuels.stateChanged)
+			if (!fuels.stateChanged && !force)
 				return;
 			// For each relevant propellant, get the list of tanks the engine will drain resources
 			resources = propellants.FindAll (

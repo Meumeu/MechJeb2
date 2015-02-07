@@ -43,14 +43,18 @@ namespace MuMech
 			}
 		}
 
+		protected override void initialize()
+		{
+			engineForce.forceEngineUpdate(state);
+		}
+
 		protected override ReentryResult postStep ()
 		{
 			if (engineForce.depleted)
 				return new FailedReentryResult("Fuel finished");
 			if (state.t > engineForce.startUT && Vector3d.Dot(state.pos, state.vel) >= 0)
 			{
-				var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-                return new LandedReentryResult(states, referenceFrame, burnUt);
+				return new LandedReentryResult(states, referenceFrame, burnUt);
 			}
 
 			if (state.t > minUt + maxDuration)
@@ -74,8 +78,7 @@ namespace MuMech
 				minUt = burnUt;
 				if (maxUt - minUt <= dt)
 				{
-					var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-                    this.result = new LandedReentryResult(states, referenceFrame, burnUt);
+					this.result = new LandedReentryResult(states, referenceFrame, burnUt);
 					return;
 				}
 				burnUt = (maxUt + minUt)/2;
@@ -93,8 +96,7 @@ namespace MuMech
 					delay = (maxUt - minUt) / 2;
 				if (delay <= dt)
 				{
-					var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-                    this.result = new LandedReentryResult(states, referenceFrame, burnUt);
+					this.result = new LandedReentryResult(states, referenceFrame, burnUt);
 					return;
 				}
 				burnUt += delay;

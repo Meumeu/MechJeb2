@@ -130,7 +130,7 @@ namespace MuMech
 			while (states.Count > 1)
 			{
 				var abs = referenceFrame.ToAbsolute(state.pos, state.t);
-				double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);
+				double alt = Math.Max(mainBody.TerrainAltitude(abs.latitude, abs.longitude), 0);
 				if (abs.radius < mainBody.Radius + alt)
 				{
 					states.RemoveAt(states.Count - 1);

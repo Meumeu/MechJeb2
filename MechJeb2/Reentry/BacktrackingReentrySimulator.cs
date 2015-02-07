@@ -65,7 +65,7 @@ namespace MuMech
 				noBurnStates = states;
 
 			var abs = referenceFrame.ToAbsolute(state.pos, state.t);
-			double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);
+			double alt = Math.Max(mainBody.TerrainAltitude(abs.latitude, abs.longitude), 0);
 
 			// Burn later if fuel is finished before touchdown
 			if (engineForce.depleted && abs.radius > mainBody.Radius + alt)

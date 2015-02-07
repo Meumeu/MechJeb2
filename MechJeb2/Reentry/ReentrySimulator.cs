@@ -54,7 +54,7 @@ namespace MuMech
 					return;
 				}
 
-				MechJebCore.QueueUserWorkItem(postProcessResult, result);
+				MechJebCore.QueueUserWorkItem(postProcessResultWrapper, result);
 			}
 			catch(System.Exception e)
 			{
@@ -139,6 +139,19 @@ namespace MuMech
 				{
 					return;
 				}
+			}
+		}
+
+		private void postProcessResultWrapper(object result)
+		{
+			try
+			{
+				postProcessResultWrapper(result);
+			}
+			catch (System.Exception e)
+			{
+				Debug.LogException(e);
+				this.result = new FailedReentryResult(e);
 			}
 		}
 

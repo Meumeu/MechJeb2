@@ -38,6 +38,7 @@ namespace MuMech
 
             float TargetVelocity(float alt)
             {
+                // FIXME: don't use a linear search
                 if (alt > vertical_velocity_profile[0].Key)
                     return vertical_velocity_profile[0].Value;
 
@@ -70,7 +71,7 @@ namespace MuMech
                 // TODO perhaps we should pop the parachutes at this point, or at least consider it depending on the altitude.
 
                 // TODO: use altitudeASL once we have an actual vertical velocity profile
-                double minalt = Math.Min(vesselState.altitudeBottom, Math.Min(vesselState.altitudeASL, vesselState.altitudeTrue));
+                double minalt = core.landing.MinAltitude();
                 status = "Final descent: " + minalt.ToString("F0") + "m above terrain";
 
                 /*if (vesselState.limitedMaxThrustAccel < vesselState.gravityForce.magnitude)
@@ -88,6 +89,7 @@ namespace MuMech
                     double vert_acc = vert_speed_ctrl.Compute(target_vert_spd - vert_spd) + vesselState.gravityForce.magnitude;
 
                     Vector3d target_acc;
+                    Vector3d target_vel;
 
                     status += "\nVertical speed\n" + 
                         "  Target: " + target_vert_spd.ToString("F2") + " m/s\n" +
@@ -111,25 +113,25 @@ namespace MuMech
                         if (v > max_horiz_vel)
                             v = max_horiz_vel;
 
-                        Vector3d target_vel = -v * target.normalized;
-                        target_acc = Vector3d.Exclude(vesselState.up,
-                            horiz_speed_ctrl.Compute(target_vel - Vector3d.Exclude(vesselState.up, vesselState.surfaceVelocity)))
-                            + vesselState.up * vert_acc;
+                        target_vel = -v * target.normalized;
 
                         status += "\nHorizontal position error: " + target.magnitude.ToString("F2") + " m";
                         status += "\nHorizontal speed target: " + target_vel.magnitude.ToString("F2") + " m/s";
-
-                        core.attitude.attitudeTo(target_acc, AttitudeReference.INERTIAL, core.landing);
                     }
                     else
                     {
-                        target_acc = vesselState.up * vert_acc;
-                        core.attitude.attitudeTo(Vector3d.up, AttitudeReference.SURFACE_NORTH, core.landing);
+                        target_vel = Vector3d.zero;
                     }
+
+                    target_acc = horiz_speed_ctrl.Compute(target_vel - Vector3d.Exclude(vesselState.up, vesselState.surfaceVelocity))
+                        + vesselState.up * vert_acc;
+
+                    core.attitude.attitudeTo(target_acc, AttitudeReference.INERTIAL, core.landing);
 
                     core.thrust.tmode = MechJebModuleThrustController.TMode.DIRECT;
                     core.thrust.trans_spd_act = Mathf.Clamp((float)((target_acc.magnitude - vesselState.minThrustAccel) / (vesselState.maxThrustAccel - vesselState.minThrustAccel) * 100), 0, 100);
 
+                    horiz_speed_ctrl.intAccum = Vector3d.Exclude(vesselState.up, horiz_speed_ctrl.intAccum);
                 }
 
                 return this;

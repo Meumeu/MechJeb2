@@ -30,6 +30,8 @@ namespace MuMech
         public ReentryResult prediction;
         public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
 
+        MechJebModuleLandingPredictions predictor;
+
         public double BurnUt
         {
             get
@@ -92,6 +94,7 @@ namespace MuMech
 
         public override void OnStart(PartModule.StartState state)
         {
+            predictor = core.GetComputerModule<MechJebModuleLandingPredictions>();
         }
 
         //public interface:
@@ -99,9 +102,6 @@ namespace MuMech
         {
             landAtTarget = true;
             users.Add(controller);
-
-            simulator = new BacktrackingReentrySimulator(vessel, orbit, touchdownSpeed.val);
-            simulator.StartSimulation();
 
             vessel.RemoveAllManeuverNodes(); // For the benefit of the landing predictions module
 
@@ -159,7 +159,10 @@ namespace MuMech
                 if (simulator != null && simulator.result != null)
                 {
                     if (simulator.result is LandedReentryResult || simulator.result is AerobrakedReentryResult || simulator.result is NoReentryResult)
+                    {
                         prediction = simulator.result;
+                        predictor.result = simulator.result;
+                    }
 
                     Debug.Log("Simulation result available: " + simulator.result);
                 }

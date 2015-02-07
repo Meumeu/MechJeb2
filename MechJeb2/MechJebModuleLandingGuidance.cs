@@ -117,27 +117,23 @@ namespace MuMech
             base.WindowGUI(windowID);
         }
 
+        bool drawPrediction;
+
         [GeneralInfoItem("Landing predictions", InfoItem.Category.Misc)]
         void DrawGUITogglePredictions()
         {
             GUILayout.BeginVertical();
 
-            bool active = GUILayout.Toggle(predictor.enabled, "Show landing predictions");
-            if (predictor.enabled != active)
-            {
-                if (active)
-                {
-                    predictor.users.Add(this);
-                }
-                else
-                {
-                    predictor.users.Remove(this);
-                }
-            }
+            drawPrediction = GUILayout.Toggle(drawPrediction, "Show landing predictions");
 
-            if (predictor.enabled)
+            predictor.enabled = core.landing.enabled ? false : drawPrediction;
+            predictor.drawLandingPrediction = drawPrediction;
+
+            if (drawPrediction)
             {
-                predictor.makeAerobrakeNodes = GUILayout.Toggle(predictor.makeAerobrakeNodes, "Show aerobrake nodes");
+                if (predictor.enabled)
+                    predictor.makeAerobrakeNodes = GUILayout.Toggle(predictor.makeAerobrakeNodes, "Show aerobrake nodes");
+
                 DrawGUIPrediction();
             }
 

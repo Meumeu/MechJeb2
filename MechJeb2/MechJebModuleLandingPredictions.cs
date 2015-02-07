@@ -27,6 +27,7 @@ namespace MuMech
         public ReentrySimulator simulator = null;
 
         public ReentryResult result = null;
+        public bool drawLandingPrediction = false;
 
         public ManeuverNode aerobrakeNode = null;
 
@@ -185,7 +186,7 @@ namespace MuMech
 
         void DoMapView()
         {
-            if (MapView.MapIsEnabled && vessel.isActiveVessel && this.enabled)
+            if (MapView.MapIsEnabled && vessel.isActiveVessel && (this.enabled || drawLandingPrediction))
             {
 				LandedReentryResult landed = result as LandedReentryResult;
 				if (landed != null)

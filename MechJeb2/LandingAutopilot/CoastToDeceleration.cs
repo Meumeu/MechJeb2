@@ -37,7 +37,7 @@ namespace MuMech
                 }
                 else
                 {
-                    double timeToDecelerationBurn = Planetarium.GetUniversalTime() - (core.landing.BurnUt - 5);
+                    double timeToDecelerationBurn = (core.landing.BurnUt - 5) - Planetarium.GetUniversalTime();
 
                     if (timeToDecelerationBurn > 0)
                     {

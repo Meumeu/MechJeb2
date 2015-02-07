@@ -6,8 +6,6 @@ namespace MuMech
 {
 	public class BacktrackingReentrySimulator : ReentrySimulator
 	{
-		private const double maxDuration = 3600;
-
 		public BacktrackingReentrySimulator(Vessel vessel, Orbit orbit, double targetTouchDownSpeed) : base(vessel, orbit)
 		{
 			engineForce = new TimedBurn(vessel, double.MaxValue, 0.95f);
@@ -56,10 +54,6 @@ namespace MuMech
 			{
 				return new LandedReentryResult(states, referenceFrame, burnUt);
 			}
-
-			if (state.t > minUt + maxDuration)
-				throw new Exception("Reentry timeout, altitude=" + (state.pos.magnitude - mainBody.Radius).ToString("F2") + "m");
-				//return new FailedReentryResult(new Exception("Reentry timeout, altitude=" + (state.pos.magnitude - mainBody.Radius).ToString("SI") + "m"));
 
 			return base.postStep ();
 		}
@@ -111,8 +105,6 @@ namespace MuMech
 			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || maxUt - minUt <= dt)
 			{
 				this.result = new LandedReentryResult(states, referenceFrame, burnUt);
-				//var pos = referenceFrame.ToAbsolute(state.pos, state.t);
-				//this.result = new LandedReentryResult(pos, state.t, svel.magnitude, referenceFrame);
 				return;
 			}
 			burnUt = (maxUt + minUt)/2;

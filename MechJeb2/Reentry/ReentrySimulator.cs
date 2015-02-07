@@ -43,10 +43,15 @@ namespace MuMech
 			{
 				ReentryResult result = null;
 				initialize();
-				while (result == null)
+				while (result == null && --iterationsLeft > 0)
 				{
 					integrationStep();
 					result = postStep();
+				}
+				if (iterationsLeft == 0)
+				{
+					this.result = new FailedReentryResult("Reentry timeout");
+					return;
 				}
 
 				MechJebCore.QueueUserWorkItem(postProcessResult, result);
@@ -64,6 +69,8 @@ namespace MuMech
 		protected ReentrySimulatorState state { get { return states.Last(); } }
 
 		protected double dt = 0.02;
+
+		protected int iterationsLeft = 100000;
 
 		protected CelestialBody mainBody;
 		protected readonly ReferenceFrame referenceFrame;
@@ -120,7 +127,7 @@ namespace MuMech
 		// Must be called in main thread
 		protected void removeUnderground()
 		{
-			while (states.Count > 0 && this.result == null)
+			while (states.Count > 1)
 			{
 				var abs = referenceFrame.ToAbsolute(state.pos, state.t);
 				double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);

@@ -109,7 +109,7 @@ namespace MuMech
 		}
 	}
 
-	public class dState
+	public struct dState
 	{
 		public Vector3d force;
 		// mass flow rate in tonne/s for each propellant

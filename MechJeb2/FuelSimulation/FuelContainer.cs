@@ -60,6 +60,7 @@ namespace MuMech
 						return this;
 				}
 				var res = (FuelSummary) this.MemberwiseClone();
+				res.nodes = new Dictionary<Part, FuelContainer>(res.nodes);
 				foreach (var rate in rates)
 				{
 					var node = (FuelContainer)res.nodes[rate.Key.part].MemberwiseClone();

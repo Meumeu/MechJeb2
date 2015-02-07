@@ -42,6 +42,7 @@ namespace MuMech
 			try
 			{
 				ReentryResult result = null;
+				initialize();
 				while (result == null)
 				{
 					integrationStep();
@@ -113,6 +114,8 @@ namespace MuMech
 			}
 			return null;
 		}
+
+		protected virtual void initialize(){}
 
 		// Must be called in main thread
 		protected void removeUnderground()

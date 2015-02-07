@@ -33,7 +33,7 @@ namespace MuMech
 		// index n contains the dry mass of the previous stages as well
 		private readonly double[] baseMass;
 		// mass of propellants of each part
-		public Dictionary<Part, FuelContainer> resources;
+		public FuelContainer.FuelSummary resources;
 		public int currentStage;
 
 		public double t;
@@ -48,7 +48,7 @@ namespace MuMech
 			this.pos = pos;
 			this.vel = vel;
 			this.t = startUT;
-			this.resources = FuelContainer.Build(vessel);
+			this.resources = new FuelContainer.FuelSummary(vessel);
 
 			Queue<KeyValuePair<Part,int>> pending = new Queue<KeyValuePair<Part,int>>();
 			List<double> baseMass = new List<double>();
@@ -89,7 +89,7 @@ namespace MuMech
 
 		private void updateMass()
 		{
-			mass = baseMass[currentStage] + resources.Sum(kv => kv.Value.fuelMass);
+			mass = baseMass[currentStage] + resources.fuelMass;
 		}
 
 		private ReentrySimulatorState() {}
@@ -102,7 +102,7 @@ namespace MuMech
 			res.t += dt;
 			if (delta.propellant != null)
 			{
-				res.resources = FuelContainer.ApplyConsumption(res.resources, delta.propellant, dt);
+				res.resources = res.resources.ApplyConsumption(delta.propellant, dt);
 				updateMass();
 			}
 			return res;

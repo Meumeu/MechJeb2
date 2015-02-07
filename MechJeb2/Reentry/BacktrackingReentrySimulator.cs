@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace MuMech
 {
@@ -14,6 +16,8 @@ namespace MuMech
 			minUt = orbit.StartUT;
 		}
 
+		private List<ReentrySimulatorState> noBurnStates;
+
 		public readonly double targetTouchDownSpeed;
 		private TimedBurn engineForce;
 
@@ -23,16 +27,19 @@ namespace MuMech
 			get { return engineForce.startUT;}
 			set
 			{
-				if (value > burnUt)
+				engineForce.startUT = value;
+				int beforeIdx = 0;
+				int afterIdx = noBurnStates.Count - 1;
+				while (afterIdx - beforeIdx > 1)
 				{
-					states.RemoveAll(st => st.t >= burnUt);
-					engineForce.startUT = value;
+					int middle = (afterIdx + beforeIdx)/2;
+					if (noBurnStates[middle].t >= value)
+						afterIdx = middle;
+					else
+						beforeIdx = middle;
 				}
-				else
-				{
-					engineForce.startUT = value;
-					states.RemoveAll(st => st.t >= burnUt);
-				}
+				states = new List<ReentrySimulatorState>();
+				states.Add(noBurnStates[beforeIdx]);
 			}
 		}
 
@@ -55,6 +62,9 @@ namespace MuMech
 
 		protected override void postProcessResult (object result)
 		{
+			if (burnUt == double.MaxValue)
+				noBurnStates = states;
+
 			var abs = referenceFrame.ToAbsolute(state.pos, state.t);
 			double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);
 
@@ -93,7 +103,7 @@ namespace MuMech
 			}
 
 			removeUnderground();
-			maxUt = Math.Min(maxUt, burnUt);
+			maxUt = Math.Min(state.t, burnUt);
 
 			var svel = SurfaceVelocity(state.pos, state.vel);
 			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || maxUt - minUt <= dt)

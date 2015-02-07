@@ -7,6 +7,72 @@ namespace MuMech
 {
 	public class FuelContainer
 	{
+		public class FuelSummary
+		{
+			public Dictionary<Part, FuelContainer> nodes;
+
+			public double fuelMass { get { return nodes.Sum(kv => kv.Value.fuelMass);}}
+
+			// True if any of the containers changed state compared to parent
+			public bool stateChanged;
+
+			public FuelSummary(Vessel vessel)
+			{
+				stateChanged = true;
+				nodes = vessel.parts.ToDictionary(p => p, p => new FuelContainer(p));
+				foreach (CompoundPart p in vessel.parts.OfType<CompoundPart>())
+				{
+					if (p.Modules.OfType<CompoundParts.CModuleFuelLine>().Count() > 0
+						&& nodes.ContainsKey(p.target))
+						nodes[p.target].linkedParts.Add(p.parent);
+				}
+				// Remove useless parts
+				List<Part> useless = new List<Part>();
+				foreach (var p in nodes)
+				{
+					// Engines are useful
+					if (p.Key.Modules.OfType<ModuleEngines>().Count() > 0
+						|| p.Key.Modules.OfType<ModuleEnginesFX>().Count() > 0)
+						continue;
+					// Fuel is useful
+					if (p.Value.fuelMass > 0)
+						continue;
+					// Things attached to other things could be useful
+					if (p.Value.stacked.Count > 0 || p.Value.radialParent != null)
+						continue;
+					useless.Add(p.Key);
+				}
+				foreach (var p in useless)
+					nodes.Remove(p);
+			}
+
+			public FuelSummary ApplyConsumption(Dictionary<ResourceIndex, double> rates, double time)
+			{
+				if (rates.Count == 0)
+				{
+					if (stateChanged)
+					{
+						var copy = (FuelSummary) this.MemberwiseClone();
+						copy.stateChanged = false;
+						return copy;
+					}
+					else
+						return this;
+				}
+				var res = (FuelSummary) this.MemberwiseClone();
+				foreach (var rate in rates)
+				{
+					var node = (FuelContainer)res.nodes[rate.Key.part].MemberwiseClone();
+					res.nodes[rate.Key.part] = node;
+					node.resourceMass = new Dictionary<int, double>(node.resourceMass);
+					double newMass = node.resourceMass[rate.Key.resourceId] - rate.Value * time;
+					node.resourceMass[rate.Key.resourceId] = Math.Max(0, newMass);
+					if (newMass <= 0)
+						res.stateChanged = true;
+				}
+				return res;
+			}
+		}
 		public Part part;
 
 		private Dictionary<int, double> resourceMass;
@@ -17,38 +83,7 @@ namespace MuMech
 		private List<Part> stacked;
 		private Part radialParent;
 
-		private double baseMass;
-
-		public static Dictionary<Part, FuelContainer> Build(Vessel vessel)
-		{
-			var res = vessel.parts.ToDictionary(p => p, p => new FuelContainer(p));
-			foreach (CompoundPart p in vessel.parts.OfType<CompoundPart>())
-			{
-				if (p.Modules.OfType<CompoundParts.CModuleFuelLine>().Count() > 0
-					&& res.ContainsKey(p.target))
-					res[p.target].linkedParts.Add(p.parent);
-			}
-			return res;
-		}
-
-		public static Dictionary<Part, FuelContainer> ApplyConsumption(Dictionary<Part, FuelContainer> nodes, Dictionary<ResourceIndex, double> rates, double time)
-		{
-			if (rates.Count == 0)
-				return nodes;
-			var res = new Dictionary<Part, FuelContainer>(nodes);
-			foreach (var rate in rates)
-			{
-				var node = (FuelContainer)res[rate.Key.part].MemberwiseClone();
-				res[rate.Key.part] = node;
-				node.resourceMass = new Dictionary<int, double>(node.resourceMass);
-				node.resourceMass[rate.Key.resourceId] = Math.Max(0, node.resourceMass[rate.Key.resourceId] - rate.Value * time);
-			}
-			return res;
-		}
-
 		public double fuelMass { get {return resourceMass.Sum(r => r.Value);}}
-
-		public double mass { get { return baseMass + fuelMass;}}
 
 		// Follows fuel flow for a given propellant (by name) and returns the list of parts from which resources
 		// will be drained
@@ -116,10 +151,6 @@ namespace MuMech
 		{
 			this.part = part;
 			resourceMass = part.Resources.list.ToDictionary(x => x.info.id, x => x.enabled ? x.info.density * x.amount : 0);
-			if (part.IsPhysicallySignificant())
-				baseMass = part.mass + part.Resources.list.Sum(x => x.enabled ? 0 : x.info.density * x.amount);
-			else
-				baseMass = 0;
 
 			stacked = new List<Part>();
 			foreach (AttachNode i in part.attachNodes)

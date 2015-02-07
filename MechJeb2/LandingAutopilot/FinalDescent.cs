@@ -8,8 +8,8 @@ namespace MuMech
     {
         public class FinalDescent : AutopilotStep
         {
-            PIDControllerV vert_speed_ctrl = new PIDControllerV(2, 0.5, 0);
-            PIDControllerV horiz_speed_ctrl = new PIDControllerV(0.1, 0, 0.4);
+            PIDController vert_speed_ctrl = new PIDController(2, 0.5, 0);
+            PIDControllerV lateral_speed_ctrl = new PIDControllerV(0.1, 0, 0.4);
 
             List<KeyValuePair<float, AbsoluteVector>> vertical_velocity_profile;
             readonly ReferenceFrame frame;
@@ -44,9 +44,12 @@ namespace MuMech
                 core.warp.MinimumWarp(true);
             }
 
-            // Finds the target vertical velocity for a given altitude
-            Vector3d TargetVelocity(float alt)
+            // Finds the target vertical velocity for a given time relative to the current time
+            Vector3d TargetVelocity(float dt)
             {
+                Vector3d pos = vesselState.CoM - vessel.mainBody.position + dt * vesselState.surfaceVelocity;
+                float alt = (float)(pos.magnitude - mainBody.Radius);
+
                 if (alt > vertical_velocity_profile[0].Key)
                     return frame.WorldVelocityAtCurrentTime(vertical_velocity_profile[0].Value);
 
@@ -82,14 +85,18 @@ namespace MuMech
 
                 // TODO perhaps we should pop the parachutes at this point, or at least consider it depending on the altitude.
 
-                // TODO: use altitudeASL once we have an actual vertical velocity profile
-                //double minalt = core.landing.MinAltitude();
-                double minalt = vesselState.altitudeASL;
+                double minalt = core.landing.MinAltitude();
                 status = "Final descent: " + minalt.ToString("F0") + "m above terrain";
 
-                Vector3d target_vel = TargetVelocity((float)minalt);
-                Vector3d target_acc = vert_speed_ctrl.Compute(target_vel - vesselState.surfaceVelocity);
-                Vector3d dir = 0.2 * target_acc.normalized - vesselState.surfaceVelocity.normalized;
+                float dt = 0.1f;
+                Vector3d target_vel = TargetVelocity(0);
+                Vector3d target_vel2 = TargetVelocity(dt);
+
+                Vector3d target_acc = (target_vel2 - target_vel) / dt - vesselState.gravityForce;
+                target_acc += vert_speed_ctrl.Compute(Vector3d.Dot(vesselState.surfaceVelocity.normalized, target_vel - vesselState.surfaceVelocity)) * vesselState.surfaceVelocity.normalized;
+                target_acc += lateral_speed_ctrl.Compute(Vector3d.Exclude(vesselState.surfaceVelocity.normalized, target_vel - vesselState.surfaceVelocity));
+
+                Vector3d dir = 0.1 * target_acc.normalized - vesselState.surfaceVelocity.normalized;
                 core.attitude.attitudeTo(dir.normalized, AttitudeReference.INERTIAL, core.landing);
 
                 double acc = Vector3d.Dot(target_acc, dir);

@@ -58,7 +58,9 @@ namespace MuMech
 
 		public override string ToString()
 		{
-			return string.Format("LandedReentryResult: {0}", Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude));
+            return string.Format("LandedReentryResult: {0}, burn UT={1}",
+                Coordinates.ToStringDMS(landingSite.latitude, landingSite.longitude),
+                GuiUtils.TimeToDHMS(burnUt));
 		}
 	}
 

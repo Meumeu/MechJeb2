@@ -30,7 +30,29 @@ namespace MuMech
                     }
                 }
 
-                status = "Coasting toward deceleration burn";
+                // Transition into the final decent step 5s before the suicide burn
+                if (!core.landing.LandingBurnReady)
+                {
+                    status = "Computing landing burn";
+                }
+                else
+                {
+                    double timeToDecelerationBurn = Planetarium.GetUniversalTime() - (core.landing.BurnUt - 5);
+
+                    if (timeToDecelerationBurn > 0)
+                    {
+                        status = "Landing burn in " + GuiUtils.TimeToDHMS(timeToDecelerationBurn);
+                    }
+                    else
+                    {
+                        core.warp.MinimumWarp();
+                        return new FinalDescent(core,
+                            (core.landing.prediction as LandedReentryResult).trajectory,
+                            (core.landing.prediction as LandedReentryResult).frame);
+                    }
+                }
+
+
 
                 // If there is already a parachute deployed, then do not bother trying
                 // to correct the course as we will not have any attitude control anyway.
@@ -66,14 +88,6 @@ namespace MuMech
                     }
                 }
 
-                // Transition into the final decent step 5s before the suicide burn
-                if (!double.IsNaN(core.landing.BurnUt) && core.landing.BurnUt < Planetarium.GetUniversalTime() + 5)
-                {
-                    core.warp.MinimumWarp();
-                    return new FinalDescent(core,
-                        (core.landing.prediction as LandedReentryResult).trajectory,
-                        (core.landing.prediction as LandedReentryResult).frame);
-                }
 
                 if (core.attitude.attitudeAngleFromTarget() < 1) { warpReadyAttitudeControl = true; } // less warp start warp stop jumping
                 if (core.attitude.attitudeAngleFromTarget() > 10) { warpReadyAttitudeControl = false; } // hopefully
@@ -83,7 +97,7 @@ namespace MuMech
                 // Warp at a rate no higher than the rate that would have us start the burn 10 seconds from now:
                 if (core.node.autowarp)
                 {
-                    if (warpReadyAttitudeControl && warpReadyCourseCorrection && !double.IsNaN(core.landing.BurnUt))
+                    if (warpReadyAttitudeControl && warpReadyCourseCorrection && core.landing.LandingBurnReady)
                         core.warp.WarpRegularAtRate((float)(core.landing.BurnUt - Planetarium.GetUniversalTime()) / 10);
                     else
                         core.warp.MinimumWarp();

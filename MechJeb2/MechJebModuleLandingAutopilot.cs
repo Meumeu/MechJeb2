@@ -36,7 +36,15 @@ namespace MuMech
         {
             get
             {
-                return PredictionReady ? (prediction as LandedReentryResult).burnUt : double.NaN;
+                return (prediction as LandedReentryResult).burnUt;
+            }
+        }
+
+        public bool LandingBurnReady
+        {
+            get
+            {
+                return prediction is LandedReentryResult && !double.IsNaN((prediction as LandedReentryResult).burnUt);
             }
         }
 

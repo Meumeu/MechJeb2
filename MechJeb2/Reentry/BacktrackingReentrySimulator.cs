@@ -18,10 +18,28 @@ namespace MuMech
 		private TimedBurn engineForce;
 
 		private double minUt;
-		public double burnUt { get { return engineForce.startUT;}}
+		private double maxUt = double.MaxValue;
+		public double burnUt {
+			get { return engineForce.startUT;}
+			set
+			{
+				if (value > burnUt)
+				{
+					states.RemoveAll(st => st.t >= burnUt);
+					engineForce.startUT = value;
+				}
+				else
+				{
+					engineForce.startUT = value;
+					states.RemoveAll(st => st.t >= burnUt);
+				}
+			}
+		}
 
 		protected override ReentryResult postStep ()
 		{
+			if (engineForce.depleted)
+				return new FailedReentryResult("Fuel finished");
 			if (state.t > engineForce.startUT && Vector3d.Dot(state.pos, state.vel) >= 0)
 			{
 				var pos = referenceFrame.ToAbsolute(state.pos, state.t);
@@ -39,28 +57,53 @@ namespace MuMech
 		{
 			var abs = referenceFrame.ToAbsolute(state.pos, state.t);
 			double alt = mainBody.TerrainAltitude(abs.latitude, abs.longitude);
-			if (abs.radius > mainBody.Radius + alt)
+
+			// Burn later if fuel is finished before touchdown
+			if (engineForce.depleted && abs.radius > mainBody.Radius + alt)
 			{
-				int startidx = (int)Math.Max((engineForce.startUT - states[0].t)/dt, 1);
-				states.RemoveRange(startidx, states.Count - startidx);
-				minUt = state.t;
-				engineForce.startUT += (abs.radius - mainBody.Radius - alt) / SurfaceVelocity(state.pos, state.vel).magnitude;
+				minUt = burnUt;
+				if (maxUt - minUt <= dt)
+				{
+					var pos = referenceFrame.ToAbsolute(state.pos, state.t);
+					this.result = new LandedReentryResult(pos, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
+					return;
+				}
+				burnUt = (maxUt + minUt)/2;
+				engineForce.depleted = false;
 				StartSimulation();
 				return;
 			}
+
+			if (abs.radius > mainBody.Radius + alt)
+			{
+				minUt = burnUt;
+				var fireState = states.Find(st => st.t >= burnUt);
+				double delay = (abs.radius - mainBody.Radius - alt) / SurfaceVelocity(fireState.pos, fireState.vel).magnitude;
+				if (double.IsNaN(delay))
+					delay = (maxUt - minUt) / 2;
+				if (delay <= dt)
+				{
+					var pos = referenceFrame.ToAbsolute(state.pos, state.t);
+					this.result = new LandedReentryResult(pos, state.t, 0, referenceFrame);
+					return;
+				}
+				burnUt += delay;
+				StartSimulation();
+				return;
+			}
+
 			removeUnderground();
+			maxUt = Math.Min(maxUt, burnUt);
+
 			var svel = SurfaceVelocity(state.pos, state.vel);
-			double newStartDelay = (Math.Min(state.t, engineForce.startUT) - minUt) / 2 + minUt - states[0].t;
-			int idx = (int) (newStartDelay / dt);
-			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || idx <= 0)
+			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || maxUt - minUt <= dt)
 			{
 				this.result = new LandedReentryResult(states, referenceFrame, burnUt);
 				//var pos = referenceFrame.ToAbsolute(state.pos, state.t);
 				//this.result = new LandedReentryResult(pos, state.t, svel.magnitude, referenceFrame);
 				return;
 			}
-			engineForce.startUT = states[0].t + newStartDelay;
-			states.RemoveRange(idx, states.Count - idx);
+			burnUt = (maxUt + minUt)/2;
 			StartSimulation();
 
 		}

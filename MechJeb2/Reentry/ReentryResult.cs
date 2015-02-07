@@ -85,6 +85,10 @@ namespace MuMech
 
 	public class FailedReentryResult : ReentryResult
 	{
+		public FailedReentryResult(String message)
+		{
+			this.message = message;
+		}
 		public FailedReentryResult(System.Exception e)
 		{
 			this.message = e.Message;// + "\n" + e.StackTrace;

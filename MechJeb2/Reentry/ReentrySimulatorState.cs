@@ -6,8 +6,8 @@ namespace MuMech
 {
 	public class ResourceIndex
 	{
-		readonly int resourceId;
-		readonly Part part;
+		public readonly int resourceId;
+		public readonly Part part;
 		public ResourceIndex(int resourceId, Part part)
 		{
 			this.resourceId = resourceId;
@@ -33,16 +33,13 @@ namespace MuMech
 		// index n contains the dry mass of the previous stages as well
 		private readonly double[] baseMass;
 		// mass of propellants of each part
-		private Dictionary<ResourceIndex, double> resources; 
+		public Dictionary<Part, FuelContainer> resources;
 		public int currentStage;
 
 		public double t;
 
-		public double mass { get
-			{
-				return baseMass[currentStage] + resources.Sum(kv => kv.Value);
-			}
-		}
+		public double mass { get ; private set;}
+
 		public Vector3d pos;
 		public Vector3d vel;
 
@@ -51,7 +48,7 @@ namespace MuMech
 			this.pos = pos;
 			this.vel = vel;
 			this.t = startUT;
-			this.resources = new Dictionary<ResourceIndex, double>();
+			this.resources = FuelContainer.Build(vessel);
 
 			Queue<KeyValuePair<Part,int>> pending = new Queue<KeyValuePair<Part,int>>();
 			List<double> baseMass = new List<double>();
@@ -80,15 +77,19 @@ namespace MuMech
 				if (part.IsPhysicallySignificant())
 					baseMass[stage] += part.mass;
 
-				foreach (var resource in part.Resources.list)
-					resources[new ResourceIndex(resource.info.id, part)] = resource.amount * resource.info.density;
-
 				foreach(var child in part.children)
 					pending.Enqueue(new KeyValuePair<Part, int>(child, stage));
 			}
 			this.baseMass = baseMass.ToArray();
 			for (int i = baseMass.Count - 1; i > 0 ; i--)
 				this.baseMass[i-1] += this.baseMass[i];
+
+			updateMass();
+		}
+
+		private void updateMass()
+		{
+			mass = baseMass[currentStage] + resources.Sum(kv => kv.Value.fuelMass);
 		}
 
 		private ReentrySimulatorState() {}
@@ -101,18 +102,8 @@ namespace MuMech
 			res.t += dt;
 			if (delta.propellant != null)
 			{
-				res.resources = new Dictionary<ResourceIndex, double>(resources);
-				foreach (var kv in delta.propellant)
-				{
-					// We may be consuming some non-existing propellant, like air intake
-					// or something not simulated like electricity
-					double p;
-					res.resources.TryGetValue(kv.Key, out p);
-					if (p != 0)
-					{
-						res.resources[kv.Key] = Math.Max(0, p - kv.Value * dt);
-					}
-				}
+				res.resources = FuelContainer.ApplyConsumption(res.resources, delta.propellant, dt);
+				updateMass();
 			}
 			return res;
 		}
@@ -121,7 +112,7 @@ namespace MuMech
 	public class dState
 	{
 		public Vector3d force;
-		// mass flow rate in kg/s for each propellant
+		// mass flow rate in tonne/s for each propellant
 		public Dictionary<ResourceIndex, double> propellant;
 
 		public dState(Vector3d acc, Dictionary<ResourceIndex, double> propellant = null)

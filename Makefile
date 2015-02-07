@@ -19,6 +19,7 @@ MECHJEBFILES := $(wildcard MechJeb2/*.cs) \
 	$(wildcard MechJeb2/Maneuver/*.cs) \
 	$(wildcard MechJeb2/Properties/*.cs) \
 	$(wildcard MechJeb2/alglib/*.cs) \
+	$(wildcard MechJeb2/FuelSimulation/*.cs) \
 	$(wildcard MechJeb2/LandingAutopilot/*.cs) \
 	$(wildcard MechJeb2/Reentry/*.cs)
 

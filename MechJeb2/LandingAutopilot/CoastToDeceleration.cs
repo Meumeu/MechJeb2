@@ -37,11 +37,11 @@ namespace MuMech
                 }
                 else
                 {
-                    double timeToDecelerationBurn = (core.landing.BurnUt - 5) - Planetarium.GetUniversalTime();
+                    double timeToDecelerationBurn = (core.landing.BurnUt - 2) - Planetarium.GetUniversalTime();
 
                     if (timeToDecelerationBurn > 0)
                     {
-                        status = "Landing burn in " + GuiUtils.TimeToDHMS(timeToDecelerationBurn);
+                        status = "Landing burn in " + GuiUtils.TimeToDHMS(timeToDecelerationBurn, 1);
                     }
                     else
                     {

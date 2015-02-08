@@ -72,7 +72,12 @@ namespace MuMech
 		protected override void postProcessResult (object result)
 		{
 			if (burnUt == double.MaxValue)
+			{
 				noBurnStates = states;
+				var firstDescending = states.FirstOrDefault(st => Vector3d.Dot(st.pos, st.vel) <0);
+				if (firstDescending != null)
+					minUt = firstDescending.t;
+			}
 
 			var abs = referenceFrame.ToAbsolute(state.pos, state.t);
 			double alt = Math.Max(mainBody.TerrainAltitude(abs.latitude, abs.longitude), 0);
@@ -97,7 +102,7 @@ namespace MuMech
 				minUt = burnUt;
 				var fireState = states.Find(st => st.t >= burnUt);
 				double delay = (abs.radius - mainBody.Radius - alt) / SurfaceVelocity(fireState.pos, fireState.vel).magnitude;
-				if (double.IsNaN(delay))
+				if (double.IsNaN(delay) || maxUt - burnUt - delay < dt)
 					delay = (maxUt - minUt) / 2;
 				if (delay <= dt)
 				{
@@ -123,7 +128,7 @@ namespace MuMech
 			double thrust = engineForce.ComputeForce(states[0], mainBody).force.magnitude;
 			double gravity = new Gravity().ComputeForce(state, mainBody).force.magnitude;
 			double time = svel.magnitude * state.mass / (thrust - gravity);
-			if (time > dt)
+			if (time > dt && maxUt - time > minUt + dt)
 				burnUt = Math.Max(maxUt - time, minUt);
 			else
 				burnUt = (minUt + maxUt) /2;

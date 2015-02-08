@@ -32,7 +32,7 @@ namespace MuMech
                 if (orbit.ApA < mainBody.RealMaxAtmosphereAltitude())
                 {
                     core.thrust.targetThrottle = 0;
-                    return new CourseCorrection(core);
+                    return new CoastToDeceleration(core);
                 }
 
                 //We aim for a trajectory that 
@@ -77,7 +77,7 @@ namespace MuMech
 
                     if (deltaV.magnitude < 2.0)
                     {
-                        return new CourseCorrection(core);
+                        return new CoastToDeceleration(core);
                     }
 
                     status = "Doing high deorbit burn";

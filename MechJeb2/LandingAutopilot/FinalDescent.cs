@@ -9,7 +9,7 @@ namespace MuMech
         public class FinalDescent : AutopilotStep
         {
             PIDController vert_speed_ctrl = new PIDController(2, 1, 0);
-            PIDController vert_pos_ctrl = new PIDController(2, 1, 0);
+            PIDController vert_pos_ctrl = new PIDController(2, 0.5, 0);
             PIDControllerV lateral_speed_ctrl = new PIDControllerV(0.1, 0, 0.4);
             PIDControllerV lateral_pos_ctrl = new PIDControllerV(0.1, 0, 0.4);
 
@@ -90,18 +90,6 @@ namespace MuMech
                 int i2 = descent_profile.Count - 1;
                 while (i2 - i1 > 1)
                 {
-                    /*Vector3d pos1 = frame.WorldPositionAtCurrentTime(descent_profile[i1].pos);
-                    Vector3d pos2 = frame.WorldPositionAtCurrentTime(descent_profile[i2].pos);
-
-                    int i = (i1 + i2) / 2;
-
-                    Vector3d pos3 = frame.WorldPositionAtCurrentTime(descent_profile[i].pos);
-
-                    if (Vector3d.Dot(pos3 - pos1, pos2 - pos1) > Vector3d.Dot(current_pos - pos1, pos2 - pos1))
-                        i2 = i;
-                    else
-                        i1 = i;*/
-
                     int i = (i1 + i2) / 2;
 
                     if (descent_profile[i].pos.radius > radius)
@@ -119,12 +107,24 @@ namespace MuMech
                 double t1 = descent_profile[i1].UT;
                 double t2 = descent_profile[i2].UT;
 
-                //double lambda = Vector3d.Dot(current_pos - x1, x2 - x1) / (x2 - x1).sqrMagnitude;
                 double lambda = (radius - descent_profile[i1].pos.radius) / (descent_profile[i2].pos.radius - descent_profile[i1].pos.radius);
 
                 pos = x1 + lambda * (x2 - x1);
                 svel = v1 + lambda * (v2 - v1);
                 accel = (v2 - v1) / (t2 - t1);
+            }
+
+            Vector3d LimitLateralAcceleration(Vector3d acc, Vector3d vertical)
+            {
+                Vector3d lat = Vector3d.Exclude(vertical, acc);
+                double vert = Vector3d.Dot(vertical, acc);
+
+                if (vert < 0)
+                    return vertical * 1e-10;
+                else if (lat.magnitude > 0.2 * vert)
+                    return vert * vertical + lat.normalized * 0.2 * vert;
+                else
+                    return acc;
             }
 
             double last_vert_vel;
@@ -166,10 +166,9 @@ namespace MuMech
 
                 // horizontal control
                 Vector3d horiz_accel = lateral_speed_ctrl.Compute(Vector3d.Exclude(vertical, svel_err));
-                if (horiz_accel.magnitude > 0.2 * target_acc.magnitude)
-                    horiz_accel = 0.2 * horiz_accel.normalized * target_acc.magnitude;
-
                 target_acc += horiz_accel;
+
+                target_acc = LimitLateralAcceleration(target_acc, vertical);
 
 //                Vector3d horiz_err = Vector3d.Exclude(vesselState.up, pos_err);
 
@@ -200,6 +199,7 @@ namespace MuMech
 
                 status += "\nLateral error: " + Vector3d.Exclude(vesselState.up, pos_err).magnitude.ToString("F2") + " m";
                 status += "\nVertical error: " + Vector3d.Dot(vesselState.up, pos_err).ToString("F2") + " m";
+                status += "\nThrottle: " + core.thrust.trans_spd_act.ToString("F1") + "%";
 
                 /*double target_vert_spd = TargetVelocity((float)minalt);
                 double vert_spd = Vector3d.Dot(vesselState.surfaceVelocity, vesselState.up);

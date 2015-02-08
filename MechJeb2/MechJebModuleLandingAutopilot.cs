@@ -31,6 +31,7 @@ namespace MuMech
         public ReentryResult prediction;
         public double BurnUt = double.NaN;
         public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
+        public double maxSimulationAge = 2;
 
         MechJebModuleLandingPredictions predictor;
 
@@ -131,6 +132,7 @@ namespace MuMech
         {
             core.attitude.users.Add(this);
             core.thrust.users.Add(this);
+            core.landing.maxSimulationAge = 2;
         }
 
         public void StopLanding()
@@ -170,7 +172,7 @@ namespace MuMech
                 Debug.Log("Simulation result available: " + simulator.result);
                 simulator = null;
             }
-            if (simulator == null && Planetarium.GetUniversalTime() - simulatorCreationUt > 2)
+            if (simulator == null && Planetarium.GetUniversalTime() - simulatorCreationUt > maxSimulationAge)
             {
                 Debug.Log("Starting reentry simulation");
 

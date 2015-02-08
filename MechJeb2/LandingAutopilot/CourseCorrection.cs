@@ -12,6 +12,7 @@ namespace MuMech
             public CourseCorrection(MechJebCore core) : base(core)
             {
                 core.warp.MinimumWarp();
+                core.landing.maxSimulationAge = 0;
             }
 
             public override AutopilotStep Drive(FlightCtrlState s)
@@ -33,6 +34,7 @@ namespace MuMech
                 if (currentError < 150)
                 {
                     core.thrust.targetThrottle = 0;
+                    core.landing.maxSimulationAge = 2;
                     return new CoastToDeceleration(core);
                 }
 
@@ -40,6 +42,7 @@ namespace MuMech
                 if (vesselState.parachuteDeployed)
                 {
                     core.thrust.targetThrottle = 0;
+                    core.landing.maxSimulationAge = 2;
                     return new CoastToDeceleration(core);
                 }
 
@@ -58,6 +61,7 @@ namespace MuMech
                 {
                     const double timeConstant = 2.0;
                     core.thrust.ThrustForDV(deltaV.magnitude, timeConstant);
+                    deltaV -= vesselState.thrustVectorLastFrame * TimeWarp.fixedDeltaTime;
                 }
                 else
                 {

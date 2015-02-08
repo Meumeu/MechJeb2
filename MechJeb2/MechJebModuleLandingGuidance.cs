@@ -124,9 +124,9 @@ namespace MuMech
         {
             GUILayout.BeginVertical();
 
-            drawPrediction = GUILayout.Toggle(drawPrediction, "Show landing predictions");
+            drawPrediction = (GUILayout.Toggle(drawPrediction, "Show landing predictions") || core.landing.enabled) && !vessel.LandedOrSplashed;
 
-            predictor.enabled = core.landing.enabled ? false : drawPrediction;
+            predictor.enabled = drawPrediction && !core.landing.enabled;
             predictor.drawLandingPrediction = drawPrediction;
 
             if (drawPrediction)
@@ -143,7 +143,6 @@ namespace MuMech
         void DrawGUIPrediction()
         {
             ReentryResult result = core.landing.enabled && core.landing.prediction != null ? core.landing.prediction : predictor.result;
-            double burnUt = core.landing.BurnUt;
 
 			LandedReentryResult landed = result as LandedReentryResult;
 			if (landed != null)

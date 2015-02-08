@@ -7,6 +7,7 @@ namespace MuMech
 
 	public struct TrajectoryPoint
 	{
+		public double UT;
 		public AbsoluteVector pos;
 		public AbsoluteVector svel;
 	}
@@ -33,6 +34,7 @@ namespace MuMech
 			foreach (ReentrySimulatorState i in states)
 			{
 				TrajectoryPoint item;
+				item.UT = i.t;
 				item.pos = frame.ToAbsolute(i.pos, i.t);
 				item.svel = frame.ToAbsolute(ReentrySimulator.SurfaceVelocity(i.pos, i.vel, frame.referenceBody), i.t);
 				trajectory.Add(item);

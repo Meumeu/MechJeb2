@@ -674,6 +674,17 @@ namespace MuMech
             }
         }
 
+        public double radiusBottom
+        {
+            get
+            {
+                if (!altitudeBottomIsCurrent)
+                    ComputeVesselBottomPosition();
+
+                return (_positionBottom - mainBody.position).magnitude;
+            }
+        }
+
         public Vector3d positionBottom
         {
             get

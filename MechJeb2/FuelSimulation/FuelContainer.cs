@@ -9,7 +9,7 @@ namespace MuMech
 	{
 		public class FuelSummary
 		{
-			public Dictionary<Part, FuelContainer> nodes;
+			public Dictionary<int, FuelContainer> nodes;
 
 			public double fuelMass { get { return nodes.Sum(kv => kv.Value.fuelMass);}}
 
@@ -19,31 +19,28 @@ namespace MuMech
 			public FuelSummary(Vessel vessel)
 			{
 				stateChanged = true;
-				nodes = vessel.parts.ToDictionary(p => p, p => new FuelContainer(p));
+				Dictionary<Part, FuelContainer> nodes = vessel.parts.ToDictionary(p => p, p => new FuelContainer(p));
+				this.nodes = new Dictionary<int, FuelContainer>();
 				foreach (CompoundPart p in vessel.parts.OfType<CompoundPart>())
 				{
 					if (p.Modules.OfType<CompoundParts.CModuleFuelLine>().Count() > 0
 						&& nodes.ContainsKey(p.target))
-						nodes[p.target].linkedParts.Add(p.parent);
+						nodes[p.target].linkedParts.Add(p.parent.GetInstanceID());
 				}
-				// Remove useless parts
-				List<Part> useless = new List<Part>();
+				// Keep useful parts
 				foreach (var p in nodes)
 				{
 					// Engines are useful
 					if (p.Key.Modules.OfType<ModuleEngines>().Count() > 0
 						|| p.Key.Modules.OfType<ModuleEnginesFX>().Count() > 0)
-						continue;
+						this.nodes[p.Key.GetInstanceID()] = p.Value;
 					// Fuel is useful
 					if (p.Value.fuelMass > 0)
-						continue;
+						this.nodes[p.Key.GetInstanceID()] = p.Value;
 					// Things attached to other things could be useful
 					if (p.Value.stacked.Count > 0 || p.Value.radialParent != null)
-						continue;
-					useless.Add(p.Key);
+						this.nodes[p.Key.GetInstanceID()] = p.Value;
 				}
-				foreach (var p in useless)
-					nodes.Remove(p);
 			}
 
 			public FuelSummary ApplyConsumption(Dictionary<ResourceIndex, double> rates, double time)
@@ -60,11 +57,11 @@ namespace MuMech
 						return this;
 				}
 				var res = (FuelSummary) this.MemberwiseClone();
-				res.nodes = new Dictionary<Part, FuelContainer>(res.nodes);
+				res.nodes = new Dictionary<int, FuelContainer>(res.nodes);
 				foreach (var rate in rates)
 				{
-					var node = (FuelContainer)res.nodes[rate.Key.part].MemberwiseClone();
-					res.nodes[rate.Key.part] = node;
+					var node = (FuelContainer)res.nodes[rate.Key.partId].MemberwiseClone();
+					res.nodes[rate.Key.partId] = node;
 					node.resourceMass = new Dictionary<int, double>(node.resourceMass);
 					double newMass = node.resourceMass[rate.Key.resourceId] - rate.Value * time;
 					node.resourceMass[rate.Key.resourceId] = Math.Max(0, newMass);
@@ -74,21 +71,22 @@ namespace MuMech
 				return res;
 			}
 		}
-		public Part part;
+		public int partId;
 
 		private Dictionary<int, double> resourceMass;
 
 		// List of nodes that point to the current node
-		private List<Part> linkedParts = new List<Part>();
+		private List<int> linkedParts = new List<int>();
 
-		private List<Part> stacked;
-		private Part radialParent;
+		private List<int> stacked;
+		private Nullable<int> radialParent;
+		private bool fuelCrossFeed;
 
 		public double fuelMass { get {return resourceMass.Sum(r => r.Value);}}
 
 		// Follows fuel flow for a given propellant (by name) and returns the list of parts from which resources
 		// will be drained
-		public List<FuelContainer> GetTanks(int propellantId, Dictionary<Part,FuelContainer> availableNodes, HashSet<Part> visitedTanks)
+		public List<FuelContainer> GetTanks(int propellantId, Dictionary<int,FuelContainer> availableNodes, HashSet<int> visitedTanks)
 		{
 			if (PartResourceLibrary.Instance.GetDefinition(propellantId).resourceFlowMode == ResourceFlowMode.NO_FLOW)
 			{
@@ -100,13 +98,13 @@ namespace MuMech
 			List<FuelContainer> result = new List<FuelContainer>();
 
 			// Rule 1
-			if (visitedTanks.Contains(part))
+			if (visitedTanks.Contains(partId))
 				return result;
 
-			visitedTanks.Add(part);
+			visitedTanks.Add(partId);
 
 			// Rule 2
-			foreach (Part p in linkedParts)
+			foreach (int p in linkedParts)
 			{
 				if (availableNodes.ContainsKey(p))
 					result.AddRange(availableNodes[p].GetTanks(propellantId, availableNodes, visitedTanks));
@@ -119,9 +117,9 @@ namespace MuMech
 			// There is no rule 3
 
 			// Rule 4
-			if (part.fuelCrossFeed)
+			if (fuelCrossFeed)
 			{
-				foreach (Part p in stacked.Where(availableNodes.ContainsKey))
+				foreach (int p in stacked.Where(availableNodes.ContainsKey))
 				{
 					result.AddRange(availableNodes[p].GetTanks(propellantId, availableNodes, visitedTanks));
 				}
@@ -139,9 +137,9 @@ namespace MuMech
 				return new List<FuelContainer>();
 
 			// Rule 7
-			if (part.fuelCrossFeed && radialParent != null && availableNodes.ContainsKey(radialParent))
+			if (fuelCrossFeed && radialParent.HasValue && availableNodes.ContainsKey(radialParent.Value))
 			{
-				return availableNodes[radialParent].GetTanks(propellantId, availableNodes, visitedTanks);
+				return availableNodes[radialParent.Value].GetTanks(propellantId, availableNodes, visitedTanks);
 			}
 
 			// Rule 8
@@ -150,10 +148,11 @@ namespace MuMech
 
 		private FuelContainer(Part part)
 		{
-			this.part = part;
+			this.partId = part.GetInstanceID();
 			resourceMass = part.Resources.list.ToDictionary(x => x.info.id, x => x.enabled ? x.info.density * x.amount : 0);
+			fuelCrossFeed = part.fuelCrossFeed;
 
-			stacked = new List<Part>();
+			stacked = new List<int>();
 			foreach (AttachNode i in part.attachNodes)
 			{
 				if (i != null && i.attachedPart != null &&
@@ -161,13 +160,13 @@ namespace MuMech
 					i.id != "Strut" &&
 					!(part.NoCrossFeedNodeKey.Length > 0 && i.id.Contains(part.NoCrossFeedNodeKey)))
 				{
-					stacked.Add(i.attachedPart);
+					stacked.Add(i.attachedPart.GetInstanceID());
 				}
 				if (i != null && i.attachedPart != null &&
 					i.attachedPart == part.parent &&
 					i.nodeType == AttachNode.NodeType.Surface)
 				{
-					radialParent = i.attachedPart;
+					radialParent = i.attachedPart.GetInstanceID();
 				}
 			}
 		}

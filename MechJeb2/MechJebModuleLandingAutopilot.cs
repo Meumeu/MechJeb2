@@ -208,7 +208,7 @@ namespace MuMech
             Vector3d actualLandingPosition = RotatedLandingSite - mainBody.position;
 
             // orbitLandingPosition is the point where our current orbit intersects the planet
-            double endRadius = mainBody.Radius + DecelerationEndAltitude() - 100;
+            double endRadius = mainBody.Radius;
             Vector3d orbitLandingPosition;
             if (orbit.PeR < endRadius)
                 orbitLandingPosition = orbit.SwappedRelativePositionAtUT(orbit.NextTimeOfRadius(vesselState.time, endRadius));

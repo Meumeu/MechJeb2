@@ -52,6 +52,7 @@ namespace MuMech
 				return new FailedReentryResult("Fuel finished");
 			if (state.t > engineForce.startUT && Vector3d.Dot(state.pos, state.vel) >= 0)
 			{
+				states.RemoveAt(states.Count - 1);
 				// The result is ignored, as we make a new one in postProcessResult
 				return new FailedReentryResult("");
 			}

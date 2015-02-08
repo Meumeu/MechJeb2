@@ -182,7 +182,6 @@ namespace MuMech
                 }
                 simulator = new BacktrackingReentrySimulator(vessel, orbit, touchdownSpeed.val);
                 simulator.StartSimulation();
-                Debug.Log("Reentry simulation started");
             }
 
             // Consider lowering the langing gear

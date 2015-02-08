@@ -116,7 +116,15 @@ namespace MuMech
 				this.result = new LandedReentryResult(states, referenceFrame);
 				return;
 			}
-			burnUt = (maxUt + minUt)/2;
+			// Force engine activation
+			engineForce.startUT = 0;
+			double thrust = engineForce.ComputeForce(states[0], mainBody).force.magnitude;
+			double gravity = new Gravity().ComputeForce(state, mainBody).force.magnitude;
+			double time = svel.magnitude * state.mass / (thrust - gravity);
+			if (time > dt)
+				burnUt = maxUt - time;
+			else
+				burnUt = (minUt + maxUt) /2;
 			StartSimulation();
 
 		}

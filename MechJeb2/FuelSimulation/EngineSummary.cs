@@ -14,7 +14,7 @@ namespace MuMech
 		FloatCurve atmosphereCurve;
 		List<Propellant> propellants;
 		Dictionary<Propellant, List<FuelContainer>> resources;
-		Part part;
+		int partId;
 
 		public EngineSummary (ModuleEngines e)
 		{
@@ -24,7 +24,7 @@ namespace MuMech
 			thrustPercentage = e.thrustPercentage;
 			atmosphereCurve = e.atmosphereCurve;
 			propellants = e.propellants;
-			part = e.part;
+			partId = e.part.GetInstanceID();
 		}
 
 		public EngineSummary (ModuleEnginesFX e)
@@ -35,7 +35,7 @@ namespace MuMech
 			thrustPercentage = e.thrustPercentage;
 			atmosphereCurve = e.atmosphereCurve;
 			propellants = e.propellants;
-			part = e.part;
+			partId = e.part.GetInstanceID();
 		}
 
 		// result in tonne per second
@@ -54,7 +54,7 @@ namespace MuMech
 				double rate = thrust * pair.Key.ratio / (9.82 * isp * pair.Value.Count * ratioSum);
 				foreach (var part in pair.Value)
 				{
-					flow[new ResourceIndex(pair.Key.id, part.part)] = rate;
+					flow[new ResourceIndex(pair.Key.id, part.partId)] = rate;
 				}
 			}
 			return flow;
@@ -69,7 +69,7 @@ namespace MuMech
 				prop => PartResourceLibrary.Instance.GetDefinition (prop.id).density > 0 && prop.name != "IntakeAir")
 					.ToDictionary (
 				prop => prop,
-					prop => fuels.nodes[part].GetTanks (prop.id, fuels.nodes, new HashSet<Part> ()));
+					prop => fuels.nodes[partId].GetTanks(prop.id, fuels.nodes, new HashSet<int> ()));
 
 			depleted = resources.Any(p => p.Value.Count == 0);
 		}

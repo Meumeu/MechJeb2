@@ -12,7 +12,7 @@ namespace MuMech
 			engineForce = new TimedBurn(vessel, double.MaxValue, 0.95f);
 			forces.Add(engineForce);
 			this.targetTouchDownSpeed = targetTouchDownSpeed;
-			minUt = orbit.StartUT;
+			minUt = state.t;
 		}
 
 		private List<ReentrySimulatorState> noBurnStates;
@@ -32,7 +32,7 @@ namespace MuMech
 				engineForce.startUT = value;
 				int startIdx = findIdxForUt(value - 5);
 				int endIdx = findIdxForUt(value, startIdx);
-				states = noBurnStates.GetRange(startIdx, endIdx - startIdx);
+				states = noBurnStates.GetRange(startIdx, Math.Max(endIdx - startIdx, 1));
 			}
 		}
 
@@ -104,7 +104,7 @@ namespace MuMech
 					this.result = new LandedReentryResult(states, referenceFrame);
 					return;
 				}
-				burnUt += delay;
+				burnUt = Math.Min(burnUt + delay, maxUt);
 				StartSimulation();
 				return;
 			}
@@ -124,7 +124,7 @@ namespace MuMech
 			double gravity = new Gravity().ComputeForce(state, mainBody).force.magnitude;
 			double time = svel.magnitude * state.mass / (thrust - gravity);
 			if (time > dt)
-				burnUt = maxUt - time;
+				burnUt = Math.Max(maxUt - time, minUt);
 			else
 				burnUt = (minUt + maxUt) /2;
 			StartSimulation();

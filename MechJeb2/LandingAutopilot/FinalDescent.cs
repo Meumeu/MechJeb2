@@ -9,7 +9,6 @@ namespace MuMech
         public class FinalDescent : AutopilotStep
         {
             PIDController vert_speed_ctrl = new PIDController(2, 1, 0);
-            PIDController vert_pos_ctrl = new PIDController(2, 0.5, 0);
             PIDControllerV lateral_speed_ctrl = new PIDControllerV(0.1, 0, 0.4);
             PIDControllerV lateral_pos_ctrl = new PIDControllerV(0.1, 0, 0.4);
 
@@ -20,26 +19,15 @@ namespace MuMech
             {
                 this.frame = frame;
 
-                /*double vertical_accel = vesselState.limitedMaxThrustAccel * 0.9 - mainBody.GeeASL * 9.81;
-                if (vertical_accel > 0)
-                {
-                    for (float h = (float)vesselState.altitudeTrue; h > 0; h = h - 1)
-                    {
-                        double v = -Math.Sqrt(vertical_accel * 2 * h + Math.Pow(core.landing.touchdownSpeed, 2));
-                        vertical_velocity_profile.Add(new KeyValuePair<float, float>(h, (float)v));
-                    }
-                    // new GravityTurnDescentSpeedPolicy(terrainRadius, mainBody.GeeASL * 9.81, vesselState.limitedMaxThrustAccel);
-                }
-                else
-                {
-                    vertical_velocity_profile.Add(new KeyValuePair<float, float>(1, 0));
-                    vertical_velocity_profile.Add(new KeyValuePair<float, float>(0, 0));
-                }*/
-
                 foreach (var i in trajectory)
                 {
                     descent_profile.Add(i);
-                    Debug.Log(string.Format("Point #{0}: {1}, alt {2} m", descent_profile.Count, Coordinates.ToStringDMS(i.pos.latitude, i.pos.longitude), i.pos.radius - mainBody.Radius));
+                    Debug.Log(string.Format("Point #{0}: {1}, alt {2:F2} m, vertical vel: {3:F2} m/s",
+                        descent_profile.Count,
+                        Coordinates.ToStringDMS(i.pos.latitude, i.pos.longitude),
+                        i.pos.radius - mainBody.Radius,
+                        Vector3d.Dot(vesselState.up, frame.WorldVelocityAtCurrentTime(i.svel))
+                    ));
                 }
 
                 core.warp.MinimumWarp(true);
@@ -48,27 +36,7 @@ namespace MuMech
             // Finds the target acceleration, speed, position for a given time
             void Guidance(out Vector3d pos, out Vector3d svel, out Vector3d accel)
             {
-                /*if (UT < descent_profile[0].UT)
-                {
-                    pos = frame.WorldPositionAtCurrentTime(descent_profile[0].pos);
-                    svel = frame.WorldVelocityAtCurrentTime(descent_profile[0].svel);
-                    return;
-                }
-
-                if (UT > descent_profile[descent_profile.Count - 1].UT)
-                {
-                    svel = frame.WorldVelocityAtCurrentTime(descent_profile[descent_profile.Count - 1].svel);
-                    if (Vector3d.Dot(vesselState.up, svel) > -core.landing.touchdownSpeed)
-                        svel = Vector3d.Exclude(vesselState.up, svel) - vesselState.up * core.landing.touchdownSpeed;
-
-                    pos = frame.WorldPositionAtCurrentTime(descent_profile[descent_profile.Count - 1].pos)
-                        + svel * (UT - descent_profile[descent_profile.Count - 1].UT);
-
-                    return;
-                }*/
-
-                //double radius = vesselState.radius;
-                double radius = vesselState.radiusBottom;
+                double radius = vesselState.altitudeBottom + descent_profile[descent_profile.Count - 1].pos.radius;
 
                 if (radius > descent_profile[0].pos.radius)
                 {
@@ -162,6 +130,7 @@ namespace MuMech
 
                 // vertical control
                 double vert_accel = vert_speed_ctrl.Compute(Vector3d.Dot(vertical, svel_err));
+                vert_speed_ctrl.intAccum = Mathf.Clamp((float)vert_speed_ctrl.intAccum, -(float)mainBody.GeeASL, (float)mainBody.GeeASL); // anti windup
                 target_acc += vert_accel * vertical;
 
                 // horizontal control
@@ -170,17 +139,6 @@ namespace MuMech
 
                 target_acc = LimitLateralAcceleration(target_acc, vertical);
 
-//                Vector3d horiz_err = Vector3d.Exclude(vesselState.up, pos_err);
-
-                //Vector3d svel_err = svel - vesselState.surfaceVelocity /*+ vert_pos_ctrl.Compute(alt_err) * vesselState.up + lateral_pos_ctrl.Compute(horiz_err)*/;
-
-
-
-                //target_acc += vert_speed_ctrl.Compute(Vector3d.Dot(vesselState.surfaceVelocity.normalized, svel_err)) * vesselState.surfaceVelocity.normalized;
-                //target_acc += lateral_speed_ctrl.Compute(Vector3d.Exclude(vesselState.surfaceVelocity.normalized, svel_err));
-                //lateral_speed_ctrl.intAccum = Vector3d.Exclude(vesselState.up, lateral_speed_ctrl.intAccum);
-
-                //Vector3d dir = 0.1 * target_acc.normalized - vesselState.surfaceVelocity.normalized;
                 core.attitude.attitudeTo(target_acc.normalized, AttitudeReference.INERTIAL, core.landing);
 
                 double acc = target_acc.magnitude;

@@ -23,7 +23,7 @@ namespace MuMech
         [Persistent(pass = (int)(Pass.Local | Pass.Type | Pass.Global))]
         public EditableInt limitChutesStage = 0;
         [Persistent(pass = (int)(Pass.Local | Pass.Type | Pass.Global))]
-        public bool rcsCourseCorrection = false;
+        public bool useRCS = false;
 
         //Landing prediction data:
         BacktrackingReentrySimulator simulator;

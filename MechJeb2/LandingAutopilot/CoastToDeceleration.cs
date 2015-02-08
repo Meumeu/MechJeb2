@@ -10,7 +10,7 @@ namespace MuMech
         {
             public CoastToDeceleration(MechJebCore core) : base(core)
             {
-                if (core.landing.rcsCourseCorrection && core.landing.landAtTarget)
+                if (core.landing.useRCS && core.landing.landAtTarget)
                     core.rcs.enabled = true;
             }
 
@@ -56,15 +56,16 @@ namespace MuMech
                 {
                     double currentError = Vector3d.Distance(core.target.GetPositionTargetPosition(), core.landing.LandingSite);
 
-                    if (currentError > 1000)
+                    Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
+
+                    if (deltaV.magnitude > 10)
                     {
                         core.rcs.enabled = false;
                         return new CourseCorrection(core);
                     }
-                    else if (core.landing.rcsCourseCorrection)
+                    else if (core.landing.useRCS)
                     {
-                        Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
-
+                        // FIXME: adjust thresholds depending on maximum RCS thrust over vessel mass
                         if (deltaV.magnitude > 3 || (core.landing.LandingBurnReady && timeToDecelerationBurn < 30 && deltaV.magnitude > 1))
                             core.rcs.enabled = true;
                         else if (deltaV.magnitude < 0.5)

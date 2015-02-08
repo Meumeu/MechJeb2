@@ -661,40 +661,62 @@ namespace MuMech
         // Altitude of bottom of craft, only calculated when requested because it is a bit expensive
         private bool altitudeBottomIsCurrent = false;
         private double _altitudeBottom;
+        private Vector3d _positionBottom;
         [ValueInfoItem("Altitude (bottom)", InfoItem.Category.Surface, format = ValueInfoItem.SI, siSigFigs = 6, siMaxPrecision = 0, units = "m")]
         public double altitudeBottom
         {
             get
             {
                 if (!altitudeBottomIsCurrent)
-                {
-                    _altitudeBottom = ComputeVesselBottomAltitude(vesselRef);
-                    altitudeBottomIsCurrent = true;
-                }
+                    ComputeVesselBottomPosition();
+
                 return _altitudeBottom;
             }
         }
 
-        double ComputeVesselBottomAltitude(Vessel vessel)
+        public Vector3d positionBottom
         {
-            if (vessel.rigidbody == null) return 0;
-            double ret = altitudeTrue;
-            foreach (Part p in vessel.parts)
+            get
+            {
+                if (!altitudeBottomIsCurrent)
+                    ComputeVesselBottomPosition();
+
+                return _positionBottom;
+            }
+        }
+
+        void ComputeVesselBottomPosition()
+        {
+            if (vesselRef.rigidbody == null)
+            {
+                _positionBottom = Vector3d.zero;
+                _altitudeBottom = 0;
+                return;
+            }
+
+            _positionBottom = CoM - mainBody.position;
+
+            foreach (Part p in vesselRef.parts)
             {
                 if (p.collider != null)
                 {
-                    /*Vector3d bottomPoint = p.collider.ClosestPointOnBounds(vesselmainBody.position);
-                    double partBottomAlt = vesselmainBody.GetAltitude(bottomPoint) - surfaceAltitudeASL;
-                    _altitudeBottom = Math.Max(0, Math.Min(_altitudeBottom, partBottomAlt));*/
                     Bounds bounds = p.collider.bounds;
                     Vector3 extents = bounds.extents;
+                    Vector3d position = bounds.center - mainBody.position;
                     float partRadius = Mathf.Max(extents[0], Mathf.Max(extents[1], extents[2]));
-                    double partAltitudeBottom = vessel.mainBody.GetAltitude(bounds.center) - partRadius - surfaceAltitudeASL;
-                    partAltitudeBottom = Math.Max(0, partAltitudeBottom);
-                    if (partAltitudeBottom < ret) ret = partAltitudeBottom;
+                    double partRadiusBottom = position.magnitude - partRadius;
+
+                    if (partRadiusBottom * partRadiusBottom < _positionBottom.sqrMagnitude)
+                    {
+                        _positionBottom = position.normalized * partRadiusBottom;
+                    }
                 }
             }
-            return ret;
+
+            _positionBottom += mainBody.position;
+
+            _altitudeBottom = vesselRef.mainBody.GetAltitude(_positionBottom) - surfaceAltitudeASL;
+            altitudeBottomIsCurrent = true;
         }
 
         internal static GimbalExt getGimbalExt(Part p, out PartModule pm)

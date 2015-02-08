@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace MuMech
 {
@@ -23,22 +24,28 @@ namespace MuMech
 		private double maxUt = double.MaxValue;
 		public double burnUt {
 			get { return engineForce.startUT;}
-			set
+			private set
 			{
+				Debug.Log(string.Format("New backtracking time: {0} (delta {1})",value, burnUt - value));
 				engineForce.startUT = value;
-				int beforeIdx = 0;
-				int afterIdx = noBurnStates.Count - 1;
-				while (afterIdx - beforeIdx > 1)
-				{
-					int middle = (afterIdx + beforeIdx)/2;
-					if (noBurnStates[middle].t >= value)
-						afterIdx = middle;
-					else
-						beforeIdx = middle;
-				}
-				states = new List<ReentrySimulatorState>();
-				states.Add(noBurnStates[beforeIdx]);
+				int startIdx = findIdxForUt(value - 5);
+				int endIdx = findIdxForUt(value, startIdx);
+				states = noBurnStates.GetRange(startIdx, endIdx - startIdx);
 			}
+		}
+
+		private int findIdxForUt(double ut, int beforeIdx = 0)
+		{
+			int afterIdx = noBurnStates.Count - 1;
+			while (afterIdx - beforeIdx > 1)
+			{
+				int middle = (afterIdx + beforeIdx)/2;
+				if (noBurnStates[middle].t >= ut)
+					afterIdx = middle;
+				else
+					beforeIdx = middle;
+			}
+			return beforeIdx;
 		}
 
 		protected override void initialize()

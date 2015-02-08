@@ -22,9 +22,13 @@ namespace MuMech
 			minThrust = e.minThrust;
 			maxThrust = e.maxThrust;
 			thrustPercentage = e.thrustPercentage;
-			atmosphereCurve = e.atmosphereCurve;
 			propellants = e.propellants;
 			partId = e.part.GetInstanceID();
+			// Duplicate the isp curve for thread safety
+			ConfigNode save = new ConfigNode();
+			e.atmosphereCurve.Save(save);
+			atmosphereCurve = new FloatCurve();
+			atmosphereCurve.Load(save);
 		}
 
 		public EngineSummary (ModuleEnginesFX e)
@@ -33,9 +37,13 @@ namespace MuMech
 			minThrust = e.minThrust;
 			maxThrust = e.maxThrust;
 			thrustPercentage = e.thrustPercentage;
-			atmosphereCurve = e.atmosphereCurve;
 			propellants = e.propellants;
 			partId = e.part.GetInstanceID();
+			// Duplicate the isp curve for thread safety
+			ConfigNode save = new ConfigNode();
+			e.atmosphereCurve.Save(save);
+			atmosphereCurve = new FloatCurve();
+			atmosphereCurve.Load(save);
 		}
 
 		// result in tonne per second

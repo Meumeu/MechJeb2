@@ -27,6 +27,7 @@ namespace MuMech
 
         //Landing prediction data:
         BacktrackingReentrySimulator simulator;
+        double simulatorCreationUt = 0;
         public ReentryResult prediction;
         public double BurnUt = double.NaN;
         public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
@@ -157,20 +158,20 @@ namespace MuMech
             // If the latest prediction is a landing, aerobrake or no-reentry prediciton then keep it.
             // However if it is any other sort or result it is not much use to us, so do not bother!
 
-            if (simulator == null || simulator.result != null)
+            if (simulator != null && simulator.result != null)
             {
-                if (simulator != null && simulator.result != null)
+                if (simulator.result is LandedReentryResult || simulator.result is AerobrakedReentryResult || simulator.result is NoReentryResult)
                 {
-                    if (simulator.result is LandedReentryResult || simulator.result is AerobrakedReentryResult || simulator.result is NoReentryResult)
-                    {
-                        prediction = simulator.result;
-                        predictor.result = simulator.result;
-                        BurnUt = simulator.burnUt;
-                    }
-
-                    Debug.Log("Simulation result available: " + simulator.result);
+                    prediction = simulator.result;
+                    predictor.result = simulator.result;
+                    BurnUt = simulator.burnUt;
                 }
 
+                Debug.Log("Simulation result available: " + simulator.result);
+                simulator = null;
+            }
+            if (simulator == null && Planetarium.GetUniversalTime() - simulatorCreationUt > 2)
+            {
                 Debug.Log("Starting reentry simulation");
 
                 Orbit o = orbit;
@@ -182,6 +183,7 @@ namespace MuMech
                 }
                 simulator = new BacktrackingReentrySimulator(vessel, orbit, touchdownSpeed.val);
                 simulator.StartSimulation();
+                simulatorCreationUt = Planetarium.GetUniversalTime();
             }
 
             // Consider lowering the langing gear

@@ -1,8 +1,6 @@
 using System;
 using UnityEngine;
 
-// FIXME: use a maneuver node
-
 namespace MuMech
 {
     namespace Landing
@@ -33,6 +31,21 @@ namespace MuMech
                 }
 
                 return this;
+            }
+
+            double MaxAllowedSpeedAfterDt(double dt)
+            {
+                Vector3d pos = vesselState.CoM - mainBody.position + vesselState.orbitalVelocity * dt;
+                double deceleration_end_radius = mainBody.Radius + core.landing.LandingAltitude + 500;
+                double gravity = mainBody.GeeASL * 9.81;
+                double max_accel = vesselState.limitedMaxThrustAccel;
+
+                return 0.9 * Math.Sqrt(2 * (max_accel - gravity) * (pos.magnitude - deceleration_end_radius));
+            }
+
+            double MaxAllowedSpeed()
+            {
+                return MaxAllowedSpeedAfterDt(0);
             }
 
             public override AutopilotStep OnFixedUpdate()
@@ -80,8 +93,7 @@ namespace MuMech
                     thrustDirection = (thrustDirection + angleCorrection).normalized;
 
                     double rangeToLandingSite = Vector3d.Exclude(vesselState.up, core.landing.LandingSite - vesselState.CoM).magnitude;
-                    // FIXME
-                    // double maxAllowedSpeed = core.landing.MaxAllowedSpeed();
+                    double maxAllowedSpeed = MaxAllowedSpeed();
 
                     if (!lowDeorbitEndConditionSet && Vector3d.Distance(core.landing.LandingSite, vesselState.CoM) < mainBody.Radius + vesselState.altitudeASL)
                     {
@@ -97,31 +109,31 @@ namespace MuMech
                         {
                             if (lowDeorbitEndConditionSet && !lowDeorbitEndOnLandingSiteNearer)
                             {
-                                core.thrust.targetThrottle = 0;
-                                return new DecelerationBurn(core);
+                                return new CoastToDeceleration(core);
                             }
 
-                            // FIXME
-                            // double maxAllowedSpeedAfterDt = core.landing.MaxAllowedSpeedAfterDt(vesselState.deltaT);
-                            // double speedAfterDt = vesselState.speedSurface + vesselState.deltaT * Vector3d.Dot(vesselState.gravityForce, vesselState.surfaceVelocity.normalized);
-                            // double throttleToMaintainLandingSite;
-                            // if (vesselState.speedSurface < maxAllowedSpeed) throttleToMaintainLandingSite = 0;
-                            // else throttleToMaintainLandingSite = (speedAfterDt - maxAllowedSpeedAfterDt) / (vesselState.deltaT * vesselState.maxThrustAccel);
+                            double maxAllowedSpeedAfterDt = MaxAllowedSpeedAfterDt(vesselState.deltaT);
+                            double speedAfterDt = vesselState.speedSurface + vesselState.deltaT * Vector3d.Dot(vesselState.gravityForce, vesselState.surfaceVelocity.normalized);
+                            double throttleToMaintainLandingSite;
+                            if (vesselState.speedSurface < maxAllowedSpeed) throttleToMaintainLandingSite = 0;
+                            else throttleToMaintainLandingSite = (speedAfterDt - maxAllowedSpeedAfterDt) / (vesselState.deltaT * vesselState.maxThrustAccel);
 
-                            // lowDeorbitBurnMaxThrottle = throttleToMaintainLandingSite + 1 * (rangeToLandingSite / rangeToTarget - 1) + 0.2;
+                            lowDeorbitBurnMaxThrottle = throttleToMaintainLandingSite + 1 * (rangeToLandingSite / rangeToTarget - 1) + 0.2;
                         }
                         else
                         {
-                            if (lowDeorbitEndConditionSet && lowDeorbitEndOnLandingSiteNearer)
-                            {
-                                core.thrust.targetThrottle = 0;
-                                return new DecelerationBurn(core);
-                            }
-                            else
-                            {
-                                lowDeorbitBurnMaxThrottle = 0;
-                                status = "Deorbit burn complete: waiting for the right moment to start braking";
-                            }
+                            // FIXME: allow autowarp
+                            if (lowDeorbitEndConditionSet)
+                                return new CoastToDeceleration(core);
+//                            if (lowDeorbitEndConditionSet && lowDeorbitEndOnLandingSiteNearer)
+//                            {
+//                                return new CoastToDeceleration(core);
+//                            }
+//                            else
+//                            {
+//                                lowDeorbitBurnMaxThrottle = 0;
+//                                status = "Deorbit burn complete: waiting for the right moment to start braking";
+//                            }
                         }
                     }
                 }

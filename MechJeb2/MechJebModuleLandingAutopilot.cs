@@ -51,7 +51,7 @@ namespace MuMech
             }
         }
 
-        double LandingAltitude // The altitude above sea level of the terrain at the landing site
+        public double LandingAltitude // The altitude above sea level of the terrain at the landing site
         {
             get
             {

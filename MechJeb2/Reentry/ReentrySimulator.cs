@@ -109,7 +109,7 @@ namespace MuMech
 			if (state.t < minSimulationUt)
 				return null;
 			// Check if we are leaving the atmosphere
-			if (pos.radius > mainBody.RealMaxAtmosphereAltitude() && Vector3d.Dot(state.pos, state.vel) > 0)
+			if (pos.radius > mainBody.Radius + mainBody.RealMaxAtmosphereAltitude() && Vector3d.Dot(state.pos, state.vel) > 0)
 			{
 				var result = new AerobrakedReentryResult(pos, referenceFrame.ToAbsolute(state.vel, state.t), referenceFrame, state.t);
 				if (result.orbit.PeA > mainBody.RealMaxAtmosphereAltitude())

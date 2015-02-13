@@ -28,17 +28,13 @@ namespace MuMech
 
 	public class ReentrySimulatorState
 	{
-		// dry mass of each stage
-		// index n is the full vessel
-		// index n contains the dry mass of the previous stages as well
-		private readonly double[] baseMass;
 		// mass of propellants of each part
-		public FuelContainer.FuelSummary resources;
+		public FuelContainer.VesselSummary vesselSummary;
 		public int currentStage;
 
 		public double t;
 
-		public double mass { get ; private set;}
+		public double mass { get { return vesselSummary.mass;}}
 
 		public Vector3d pos;
 		public Vector3d vel;
@@ -48,48 +44,7 @@ namespace MuMech
 			this.pos = pos;
 			this.vel = vel;
 			this.t = startUT;
-			this.resources = new FuelContainer.FuelSummary(vessel);
-
-			Queue<KeyValuePair<Part,int>> pending = new Queue<KeyValuePair<Part,int>>();
-			List<double> baseMass = new List<double>();
-
-			pending.Enqueue(new KeyValuePair<Part, int>(vessel.rootPart, 0));
-
-			while (pending.Count != 0)
-			{
-				var current = pending.Dequeue();
-				var part = current.Key;
-				int stage = current.Value;
-				currentStage = Math.Max(currentStage, stage);
-				{
-					var decoupler = part.Modules.OfType<ModuleDecouple>().FirstOrDefault();
-					var aDecoupler = part.Modules.OfType<ModuleAnchoredDecoupler>().FirstOrDefault();
-					if (decoupler != null || aDecoupler != null)
-					{
-						//FIXME: if the decoupler is attached upside down, the mass and possible propellant should be added to the parent's stage
-						stage = Math.Max(part.inverseStage+1, current.Value);
-					}
-				}
-
-				while (baseMass.Count < stage + 1)
-					baseMass.Add(0);
-
-				if (part.IsPhysicallySignificant())
-					baseMass[stage] += part.mass;
-
-				foreach(var child in part.children)
-					pending.Enqueue(new KeyValuePair<Part, int>(child, stage));
-			}
-			this.baseMass = baseMass.ToArray();
-			for (int i = baseMass.Count - 1; i > 0 ; i--)
-				this.baseMass[i-1] += this.baseMass[i];
-
-			updateMass();
-		}
-
-		private void updateMass()
-		{
-			mass = baseMass[currentStage] + resources.fuelMass;
+			this.vesselSummary = new FuelContainer.VesselSummary(vessel);
 		}
 
 		private ReentrySimulatorState() {}
@@ -102,8 +57,7 @@ namespace MuMech
 			res.t += dt;
 			if (delta.propellant != null)
 			{
-				res.resources = res.resources.ApplyConsumption(delta.propellant, dt);
-				updateMass();
+				res.vesselSummary = res.vesselSummary.ApplyConsumption(delta.propellant, dt);
 			}
 			return res;
 		}
@@ -123,27 +77,7 @@ namespace MuMech
 
 		public static dState operator+(dState left, dState right)
 		{
-			Dictionary<ResourceIndex, double> propellant;
-			if (left.propellant != null && right.propellant != null)
-			{
-				propellant = new Dictionary<ResourceIndex, double>(left.propellant);
-				foreach(var kv in right.propellant)
-				{
-					double l ;
-					propellant.TryGetValue(kv.Key, out l);
-					propellant[kv.Key] = l + kv.Value;
-				}
-			}
-			else if (left.propellant != null)
-			{
-				propellant = left.propellant;
-			}
-			else
-			{
-				// could be null
-				propellant = right.propellant;
-			}
-			return new dState(left.force + right.force, propellant);
+			return new dState(left.force + right.force, EngineSummary.mergeRates(left.propellant, right.propellant));
 		}
 	}
 }

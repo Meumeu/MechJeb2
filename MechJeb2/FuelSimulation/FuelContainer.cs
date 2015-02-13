@@ -5,72 +5,8 @@ using UnityEngine;
 
 namespace MuMech
 {
-	public class FuelContainer
+	public partial class FuelContainer
 	{
-		public class FuelSummary
-		{
-			public Dictionary<int, FuelContainer> nodes;
-
-			public double fuelMass { get { return nodes.Sum(kv => kv.Value.fuelMass);}}
-
-			// True if any of the containers changed state compared to parent
-			public bool stateChanged;
-
-			public FuelSummary(Vessel vessel)
-			{
-				stateChanged = true;
-				Dictionary<Part, FuelContainer> nodes = vessel.parts.ToDictionary(p => p, p => new FuelContainer(p));
-				this.nodes = new Dictionary<int, FuelContainer>();
-				foreach (CompoundPart p in vessel.parts.OfType<CompoundPart>())
-				{
-					if (p.Modules.OfType<CompoundParts.CModuleFuelLine>().Count() > 0
-						&& nodes.ContainsKey(p.target))
-						nodes[p.target].linkedParts.Add(p.parent.GetInstanceID());
-				}
-				// Keep useful parts
-				foreach (var p in nodes)
-				{
-					// Engines are useful
-					if (p.Key.Modules.OfType<ModuleEngines>().Count() > 0
-						|| p.Key.Modules.OfType<ModuleEnginesFX>().Count() > 0)
-						this.nodes[p.Key.GetInstanceID()] = p.Value;
-					// Fuel is useful
-					if (p.Value.fuelMass > 0)
-						this.nodes[p.Key.GetInstanceID()] = p.Value;
-					// Things attached to other things could be useful
-					if (p.Value.stacked.Count > 0 || p.Value.radialParent != null)
-						this.nodes[p.Key.GetInstanceID()] = p.Value;
-				}
-			}
-
-			public FuelSummary ApplyConsumption(Dictionary<ResourceIndex, double> rates, double time)
-			{
-				if (rates.Count == 0)
-				{
-					if (stateChanged)
-					{
-						var copy = (FuelSummary) this.MemberwiseClone();
-						copy.stateChanged = false;
-						return copy;
-					}
-					else
-						return this;
-				}
-				var res = (FuelSummary) this.MemberwiseClone();
-				res.nodes = new Dictionary<int, FuelContainer>(res.nodes);
-				foreach (var rate in rates)
-				{
-					var node = (FuelContainer)res.nodes[rate.Key.partId].MemberwiseClone();
-					res.nodes[rate.Key.partId] = node;
-					node.resourceMass = new Dictionary<int, double>(node.resourceMass);
-					double newMass = node.resourceMass[rate.Key.resourceId] - rate.Value * time;
-					node.resourceMass[rate.Key.resourceId] = Math.Max(0, newMass);
-					if (newMass <= 0)
-						res.stateChanged = true;
-				}
-				return res;
-			}
-		}
 		public int partId;
 
 		private Dictionary<int, double> resourceMass;
@@ -79,8 +15,11 @@ namespace MuMech
 		private List<int> linkedParts = new List<int>();
 
 		private List<int> stacked;
+
 		private Nullable<int> radialParent;
 		private bool fuelCrossFeed;
+
+		private int decoupledInStage;
 
 		public double fuelMass { get {return resourceMass.Sum(r => r.Value);}}
 
@@ -169,6 +108,17 @@ namespace MuMech
 					radialParent = i.attachedPart.GetInstanceID();
 				}
 			}
+		}
+
+		private void setupStage(Dictionary<Part, FuelContainer> nodes, Part p, int currentStage)
+		{
+			if (p.IsUnfiredDecoupler() || p.IsLaunchClamp())
+				decoupledInStage = p.inverseStage > currentStage ? p.inverseStage : currentStage;
+			else
+				decoupledInStage = currentStage;
+
+			foreach (Part child in p.children)
+				nodes[child].setupStage(nodes, child, decoupledInStage);
 		}
 	}
 

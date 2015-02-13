@@ -7,16 +7,17 @@ namespace MuMech
 	public class EngineSummary
 	{
 		bool throttleLocked;
-		bool depleted = false;
+		public readonly bool depleted;
 		float minThrust;
 		float maxThrust;
 		float thrustPercentage;
 		FloatCurve atmosphereCurve;
 		List<Propellant> propellants;
 		Dictionary<Propellant, List<FuelContainer>> resources;
-		int partId;
+		public readonly int partId ;
+		int activationStage;
 
-		public EngineSummary (ModuleEngines e)
+		public EngineSummary (ModuleEngines e, FuelContainer.VesselSummary vessel)
 		{
 			throttleLocked = e.throttleLocked;
 			minThrust = e.minThrust;
@@ -29,9 +30,11 @@ namespace MuMech
 			e.atmosphereCurve.Save(save);
 			atmosphereCurve = new FloatCurve();
 			atmosphereCurve.Load(save);
+			activationStage = e.staged ? int.MaxValue : e.part.inverseStage;
+			depleted = setupTanks(vessel);
 		}
 
-		public EngineSummary (ModuleEnginesFX e)
+		public EngineSummary (ModuleEnginesFX e, FuelContainer.VesselSummary vessel)
 		{
 			throttleLocked = e.throttleLocked;
 			minThrust = e.minThrust;
@@ -44,7 +47,11 @@ namespace MuMech
 			e.atmosphereCurve.Save(save);
 			atmosphereCurve = new FloatCurve();
 			atmosphereCurve.Load(save);
+			activationStage = e.staged ? int.MaxValue : e.part.inverseStage;
+			depleted = setupTanks(vessel);
 		}
+
+		public bool activeInStage(int stage) { return stage <= activationStage;}
 
 		// result in tonne per second
 		public Dictionary<ResourceIndex, double> evaluateFuelFlow (float pressure, float throttle)
@@ -68,10 +75,15 @@ namespace MuMech
 			return flow;
 		}
 
-		public void updateTanks (FuelContainer.FuelSummary fuels, bool force = false)
+		public EngineSummary updateTanks(FuelContainer.VesselSummary fuels)
 		{
-			if (!fuels.stateChanged && !force)
-				return;
+			var res = (EngineSummary)this.MemberwiseClone();
+			res.updateTanks(fuels);
+			return res;
+		}
+
+		private bool setupTanks(FuelContainer.VesselSummary fuels)
+		{
 			// For each relevant propellant, get the list of tanks the engine will drain resources
 			resources = propellants.FindAll (
 				prop => PartResourceLibrary.Instance.GetDefinition (prop.id).density > 0 && prop.name != "IntakeAir")
@@ -79,7 +91,7 @@ namespace MuMech
 				prop => prop,
 					prop => fuels.nodes[partId].GetTanks(prop.id, fuels.nodes, new HashSet<int> ()));
 
-			depleted = resources.Any(p => p.Value.Count == 0);
+			return resources.Any(p => p.Value.Count == 0);
 		}
 
 		public float thrust (float throttle)
@@ -89,6 +101,22 @@ namespace MuMech
 			if (throttleLocked)
 				throttle = 1;
 			return ((maxThrust - minThrust) * throttle * thrustPercentage / 100 + minThrust);
+		}
+
+		public static Dictionary<ResourceIndex, double> mergeRates(Dictionary<ResourceIndex, double> left, Dictionary<ResourceIndex, double> right)
+		{
+			if (left == null)
+				return right;
+			if (right == null)
+				return left;
+			Dictionary<ResourceIndex, double> res =  new Dictionary<ResourceIndex, double>(left);
+			foreach(var kv in right)
+			{
+				double l ;
+				res.TryGetValue(kv.Key, out l);
+				res[kv.Key] = l + kv.Value;
+			}
+			return res;
 		}
 	}
 }

@@ -9,7 +9,7 @@ namespace MuMech
 	{
 		public BacktrackingReentrySimulator(Vessel vessel, Orbit orbit, double targetTouchDownSpeed) : base(vessel, orbit)
 		{
-			engineForce = new TimedBurn(vessel, double.MaxValue, 0.95f);
+			engineForce = new TimedBurn(double.MaxValue, 0.95f);
 			forces.Add(engineForce);
 			this.targetTouchDownSpeed = targetTouchDownSpeed;
 			minUt = state.t;
@@ -52,7 +52,6 @@ namespace MuMech
 
 		protected override void initialize()
 		{
-			engineForce.forceEngineUpdate(state);
 		}
 
 		protected override ReentryResult postStep ()

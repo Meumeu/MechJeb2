@@ -116,14 +116,17 @@ namespace MuMech
 					return this;
 				stage--;
 				var res = (VesselSummary) this.MemberwiseClone();
+				// Remove decoupled FuelContainer objects
 				res.nodes = nodes.Where(kv => kv.Value.decoupledInStage < stage).ToDictionary(kv => kv.Key, kv => kv.Value);
+				// Remove decoupled EngineSummary objects and update the tanks they take resources from
 				res.engines = engines.Where(e => res.nodes.ContainsKey(e.partId)).Select(e => e.updateTanks(this)).ToList();
 				res.computeMass();
 				return res;
 			}
 
-			public bool AllowedToStage(float pressure = 0)
+			public bool AllowedToStage()
 			{
+				float pressure = 0;
 				if (stage == 0)
 					return false;
 

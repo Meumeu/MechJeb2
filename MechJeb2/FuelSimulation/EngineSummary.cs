@@ -11,7 +11,8 @@ namespace MuMech
 		float minThrust;
 		float maxThrust;
 		float thrustPercentage;
-		FloatCurve atmosphereCurve;
+		float vacuumIsp;
+		float seaLevelIsp;
 		List<Propellant> propellants;
 		Dictionary<Propellant, List<FuelContainer>> resources;
 		public readonly int partId ;
@@ -25,11 +26,8 @@ namespace MuMech
 			thrustPercentage = e.thrustPercentage;
 			propellants = e.propellants;
 			partId = e.part.GetInstanceID();
-			// Duplicate the isp curve for thread safety
-			ConfigNode save = new ConfigNode();
-			e.atmosphereCurve.Save(save);
-			atmosphereCurve = new FloatCurve();
-			atmosphereCurve.Load(save);
+			vacuumIsp = e.atmosphereCurve.Evaluate(0);
+			seaLevelIsp = e.atmosphereCurve.Evaluate(1);
 			activationStage = e.staged ? int.MaxValue : e.part.inverseStage;
 			depleted = setupTanks(vessel);
 		}
@@ -42,13 +40,15 @@ namespace MuMech
 			thrustPercentage = e.thrustPercentage;
 			propellants = e.propellants;
 			partId = e.part.GetInstanceID();
-			// Duplicate the isp curve for thread safety
-			ConfigNode save = new ConfigNode();
-			e.atmosphereCurve.Save(save);
-			atmosphereCurve = new FloatCurve();
-			atmosphereCurve.Load(save);
+			vacuumIsp = e.atmosphereCurve.Evaluate(0);
+			seaLevelIsp = e.atmosphereCurve.Evaluate(1);
 			activationStage = e.staged ? int.MaxValue : e.part.inverseStage;
 			depleted = setupTanks(vessel);
+		}
+
+		public float isp(float atmospheres)
+		{
+			return vacuumIsp + (seaLevelIsp - vacuumIsp) * Math.Min(atmospheres, 1);
 		}
 
 		public bool activeInStage(int stage) { return stage <= activationStage;}
@@ -65,8 +65,7 @@ namespace MuMech
 			double ratioSum = resources.Sum (pair => pair.Key.ratio);
 			foreach (KeyValuePair<Propellant, List<FuelContainer>> pair in resources) {
 				// KSP gravity is 9.82 m/s²
-				float isp = atmosphereCurve.Evaluate (pressure);
-				double rate = thrust * pair.Key.ratio / (9.82 * isp * pair.Value.Count * ratioSum);
+				double rate = thrust * pair.Key.ratio / (9.82 * isp(pressure) * pair.Value.Count * ratioSum);
 				foreach (var part in pair.Value)
 				{
 					flow[new ResourceIndex(pair.Key.id, part.partId)] = rate;

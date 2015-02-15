@@ -87,7 +87,9 @@ namespace MuMech
 				minUt = burnUt;
 				if (maxUt - minUt <= dt)
 				{
-					this.result = new LandedReentryResult(states, referenceFrame);
+					LandedReentryResult landed = new LandedReentryResult(states, referenceFrame);
+					landed.fixLandingRadius();
+					this.result = landed;
 					return;
 				}
 				burnUt = (maxUt + minUt)/2;
@@ -105,7 +107,9 @@ namespace MuMech
 					delay = (maxUt - minUt) / 2;
 				if (delay <= dt)
 				{
-					this.result = new LandedReentryResult(states, referenceFrame);
+					LandedReentryResult landed = new LandedReentryResult(states, referenceFrame);
+					landed.fixLandingRadius();
+					this.result = landed;
 					return;
 				}
 				burnUt = Math.Min(burnUt + delay, maxUt);
@@ -119,7 +123,9 @@ namespace MuMech
 			var svel = SurfaceVelocity(state.pos, state.vel);
 			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || maxUt - minUt <= dt)
 			{
-				this.result = new LandedReentryResult(states, referenceFrame);
+				LandedReentryResult landed = new LandedReentryResult(states, referenceFrame);
+				landed.fixLandingRadius();
+				this.result = landed;
 				return;
 			}
 			// Force engine activation
@@ -132,7 +138,6 @@ namespace MuMech
 			else
 				burnUt = (minUt + maxUt) / 2;
 			StartSimulation();
-
 		}
 	}
 }

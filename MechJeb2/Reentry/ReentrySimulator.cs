@@ -92,9 +92,9 @@ namespace MuMech
 			dState dx4 = forces.Aggregate(new dState(Vector3d.zero), (ds, f) => ds + f.ComputeForce(st3, mainBody));
 
 			states.Add(state.increment(dx1, dt/6)
-				.increment(dx2, dt/3)
-				.increment(dx3, dt/3)
-				.increment(dx4, dt/6));
+				.increment(dx2, dt/3, st1)
+				.increment(dx3, dt/3, st2)
+				.increment(dx4, dt/6, st3));
 		}
 
 		protected virtual ReentryResult postStep()

@@ -27,10 +27,13 @@ namespace MuMech
 
 		private ReentrySimulatorState() {}
 
-		public ReentrySimulatorState increment(dState delta, double dt)
+		public ReentrySimulatorState increment(dState delta, double dt) { return this.increment(delta, dt, this); }
+
+		// The velSt parameter is required to use the correct velocity as it is not stored in the dState
+		public ReentrySimulatorState increment(dState delta, double dt, ReentrySimulatorState velSt)
 		{
 			ReentrySimulatorState res = (ReentrySimulatorState)this.MemberwiseClone();
-			res.pos += vel * dt;
+			res.pos += velSt.vel * dt;
 			res.vel += delta.force * dt / mass;
 			res.t += dt;
 			if (delta.propellant != null)

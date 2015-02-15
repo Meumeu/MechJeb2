@@ -72,7 +72,7 @@ namespace MuMech
 				foreach (var p in nodes)
 				{
 					// Compute total mass - fuelMass to count deactivated resources (not in fuelMass)
-					baseMass[p.Value.decoupledInStage + 1] += p.Key.TotalMass() - p.Value.fuelMass;
+					baseMass[p.Value.decoupledInStage + 1] += p.Key.IsPhysicallySignificant() ? (p.Key.TotalMass() - p.Value.fuelMass) : 0;
 				}
 				for (int i = stage - 1; i > 0 ; i--)
 					baseMass[i-1] += baseMass[i];

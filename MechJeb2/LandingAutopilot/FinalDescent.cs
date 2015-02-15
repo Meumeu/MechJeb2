@@ -10,7 +10,6 @@ namespace MuMech
         {
             PIDController vert_speed_ctrl = new PIDController(2, 1, 0);
             PIDControllerV lateral_speed_ctrl = new PIDControllerV(0.1, 0, 0.4);
-            PIDControllerV lateral_pos_ctrl = new PIDControllerV(0.1, 0, 0.4);
 
             List<TrajectoryPoint> descent_profile = new List<TrajectoryPoint>();
             readonly ReferenceFrame frame;
@@ -18,9 +17,11 @@ namespace MuMech
             public FinalDescent(MechJebCore core, List<TrajectoryPoint> trajectory, ReferenceFrame frame) : base(core)
             {
                 this.frame = frame;
+                core.rcs.enabled = false;
 
-                foreach (var i in trajectory)
+                foreach (TrajectoryPoint i in trajectory)
                 {
+                    // FIXME: adjust trajectory to hit the target
                     descent_profile.Add(i);
                     Debug.Log(string.Format("Point #{0}: {1}, alt {2:F2} m, vertical vel: {3:F2} m/s",
                         descent_profile.Count,
@@ -33,37 +34,43 @@ namespace MuMech
                 core.warp.MinimumWarp(true);
             }
 
-            // Finds the target acceleration, speed, position for a given time
-            void Guidance(out Vector3d pos, out Vector3d svel, out Vector3d accel)
+            // Finds the target acceleration, speed, position
+            void Guidance(out Vector3d pos, out Vector3d svel, out Vector3d accel, out double timeToLand, out double altitude)
             {
-                double radius = vesselState.altitudeBottom + descent_profile[descent_profile.Count - 1].pos.radius;
+                double terrainRadius = vesselState.altitudeBottom < 1000 ? mainBody.Radius + vesselState.surfaceAltitudeASL : mainBody.Radius + core.landing.LandingAltitude;
+                altitude = vesselState.radiusBottom - terrainRadius;
+                double radius = altitude + descent_profile[descent_profile.Count - 1].pos.radius;
+
+                int i1, i2;
+                double lambda;
 
                 if (radius > descent_profile[0].pos.radius)
                 {
-                    pos = frame.WorldPositionAtCurrentTime(descent_profile[0].pos);
-                    svel = frame.WorldVelocityAtCurrentTime(descent_profile[0].svel);
-                    accel = Vector3d.zero;
-                    return;
+                    i1 = 0;
+                    i2 = 1;
+                    lambda = 0;
                 }
-
-                if (radius < descent_profile[descent_profile.Count - 1].pos.radius)
+                else if (radius < descent_profile[descent_profile.Count - 1].pos.radius)
                 {
-                    pos = frame.WorldPositionAtCurrentTime(descent_profile[descent_profile.Count - 1].pos);
-                    svel = frame.WorldVelocityAtCurrentTime(descent_profile[descent_profile.Count - 1].svel);
-                    accel = Vector3d.zero;
-                    return;
+                    i1 = descent_profile.Count - 2;
+                    i2 = descent_profile.Count - 1;
+                    lambda = 1;
                 }
-
-                int i1 = 0;
-                int i2 = descent_profile.Count - 1;
-                while (i2 - i1 > 1)
+                else
                 {
-                    int i = (i1 + i2) / 2;
+                    i1 = 0;
+                    i2 = descent_profile.Count - 1;
+                    while (i2 - i1 > 1)
+                    {
+                        int i = (i1 + i2) / 2;
 
-                    if (descent_profile[i].pos.radius > radius)
-                        i1 = i;
-                    else
-                        i2 = i;
+                        if (descent_profile[i].pos.radius > radius)
+                            i1 = i;
+                        else
+                            i2 = i;
+                    }
+
+                    lambda = (radius - descent_profile[i1].pos.radius) / (descent_profile[i2].pos.radius - descent_profile[i1].pos.radius);
                 }
 
                 Vector3d v1 = frame.WorldVelocityAtCurrentTime(descent_profile[i1].svel);
@@ -75,11 +82,17 @@ namespace MuMech
                 double t1 = descent_profile[i1].UT;
                 double t2 = descent_profile[i2].UT;
 
-                double lambda = (radius - descent_profile[i1].pos.radius) / (descent_profile[i2].pos.radius - descent_profile[i1].pos.radius);
-
                 pos = x1 + lambda * (x2 - x1);
                 svel = v1 + lambda * (v2 - v1);
                 accel = (v2 - v1) / (t2 - t1);
+                timeToLand = descent_profile[descent_profile.Count - 1].UT - (t1 + lambda * (t2 - t1));
+
+
+                if (Vector3d.Dot(vesselState.up, svel) > -core.landing.touchdownSpeed)
+                {
+                    svel = Vector3d.Exclude(vesselState.up, svel) - vesselState.up * core.landing.touchdownSpeed;
+                    accel = Vector3d.Exclude(vesselState.up, accel);
+                }
             }
 
             Vector3d LimitLateralAcceleration(Vector3d acc, Vector3d vertical)
@@ -95,46 +108,70 @@ namespace MuMech
                     return acc;
             }
 
-            double last_vert_vel;
-            double last_horiz_vel;
-
             public override AutopilotStep Drive(FlightCtrlState s)
             {
                 if (vessel.LandedOrSplashed)
                 {
-                    Debug.Log(String.Format("Touchdown: vertical velocity: {0:F2} m/s, horizontal velocity: {1:F2} m/s", last_vert_vel, last_horiz_vel));
                     core.landing.StopLanding();
                     return null;
                 }
 
-                last_vert_vel = Vector3d.Dot(vesselState.up, vesselState.surfaceVelocity);
-                last_horiz_vel = Vector3d.Exclude(vesselState.up, vesselState.surfaceVelocity).magnitude;
-
                 // TODO perhaps we should pop the parachutes at this point, or at least consider it depending on the altitude.
 
-                double minalt = core.landing.MinAltitude();
-                status = "Final descent: " + minalt.ToString("F0") + "m above terrain";
+
 
                 Vector3d pos, svel, accel;
-                Guidance(out pos, out svel, out accel);
-                if (Vector3d.Dot(vesselState.up, svel) > -core.landing.touchdownSpeed)
-                    svel = Vector3d.Exclude(vesselState.up, svel) - vesselState.up * core.landing.touchdownSpeed;
+                double timeToLand, altitude;
+                Guidance(out pos, out svel, out accel, out timeToLand, out altitude);
+                status = "Final descent: " + altitude.ToString("F0") + "m above terrain\n";
+                status += "Landing in " + timeToLand.ToString("F1") + "s";
 
-                Vector3d target_acc = accel - vesselState.gravityForce;
-                Vector3d svel_err = svel - vesselState.surfaceVelocity;
-                Vector3d pos_err = Vector3d.Exclude(svel, pos - vesselState.positionBottom);
-
+//                pos = vesselState.positionBottom;
+//                svel = vesselState.surfaceVelocity;
+//                accel = TargetAcceleration(pos - mainBody.position, vesselState.orbitalVelocity, mainBody, vesselState.limitedMaxThrustAccel);
 
                 // transition smoothly from SVEL- to UP
                 Vector3d vertical = (-vesselState.surfaceVelocity + 10 * vesselState.up).normalized;
 
+                Vector3d target_acc = accel - vesselState.gravityForce;
+                Vector3d svel_err = svel - vesselState.surfaceVelocity;
+                Vector3d pos_err = Vector3d.Exclude(vertical, pos - vesselState.positionBottom);
+
+//                if (core.landing.landAtTarget)
+//                {
+//                    Vector3d courseCorr = core.landing.ComputeCourseCorrection(false);
+//
+//                    if (vesselState.altitudeBottom < 50)
+//                    {
+//                        courseCorr = Vector3d.Exclude(vesselState.up, vesselState.CoM - core.target.Position);
+//                    }
+//
+//                    if (core.landing.useRCS)
+//                    {
+//                        core.rcs.enabled = true;
+//                        core.rcs.SetWorldVelocityError(courseCorr);
+//                    }
+//                    else
+//                    {
+//                        core.rcs.enabled = false;
+//                        target_acc += 2 * (courseCorr - last_coursrCorr) / Time.fixedDeltaTime;
+//                        svel_err += 2 * courseCorr;
+//                        status += "\nCourse correction: " + courseCorr.magnitude.ToString("F3") + " m/s";
+//                    }
+//                }
+
+
+
                 // vertical control
                 double vert_accel = vert_speed_ctrl.Compute(Vector3d.Dot(vertical, svel_err));
-                vert_speed_ctrl.intAccum = Mathf.Clamp((float)vert_speed_ctrl.intAccum, -(float)mainBody.GeeASL, (float)mainBody.GeeASL); // anti windup
+                // anti windup
+                float max_integral = (float)(mainBody.GeeASL / vert_speed_ctrl.Ki);
+                vert_speed_ctrl.intAccum = Mathf.Clamp((float)vert_speed_ctrl.intAccum, -max_integral, max_integral);
                 target_acc += vert_accel * vertical;
 
                 // horizontal control
                 Vector3d horiz_accel = lateral_speed_ctrl.Compute(Vector3d.Exclude(vertical, svel_err));
+//                Vector3d horiz_accel = lateral_speed_ctrl.Compute(Vector3d.Exclude(vertical, -vesselState.surfaceVelocity));
                 target_acc += horiz_accel;
 
                 target_acc = LimitLateralAcceleration(target_acc, vertical);
@@ -143,8 +180,7 @@ namespace MuMech
 
                 double acc = target_acc.magnitude;
 
-                core.thrust.tmode = MechJebModuleThrustController.TMode.DIRECT;
-                core.thrust.trans_spd_act = Mathf.Clamp((float)((acc - vesselState.minThrustAccel) / (vesselState.maxThrustAccel - vesselState.minThrustAccel) * 100), 0, 100);
+                core.thrust.targetThrottle = Mathf.Clamp01((float)((acc - vesselState.minThrustAccel) / (vesselState.maxThrustAccel - vesselState.minThrustAccel)));
 
                 status += "\nVertical speed:\n" +
                     "  Target: " + Vector3d.Dot(vesselState.up, svel).ToString("F2") + " m/s\n" +
@@ -155,9 +191,7 @@ namespace MuMech
                     "  Actual: " + Vector3d.Exclude(vesselState.up, vesselState.surfaceVelocity).magnitude.ToString("F2") + " m/s\n" +
                     "  Error: " + Vector3d.Exclude(vesselState.up, svel - vesselState.surfaceVelocity).magnitude.ToString("F2") + " m/s";
 
-                status += "\nLateral error: " + Vector3d.Exclude(vesselState.up, pos_err).magnitude.ToString("F2") + " m";
-                status += "\nVertical error: " + Vector3d.Dot(vesselState.up, pos_err).ToString("F2") + " m";
-                status += "\nThrottle: " + core.thrust.trans_spd_act.ToString("F1") + "%";
+                status += "\nThrottle: " + (core.thrust.targetThrottle * 100).ToString("F1") + "%";
 
                 /*double target_vert_spd = TargetVelocity((float)minalt);
                 double vert_spd = Vector3d.Dot(vesselState.surfaceVelocity, vesselState.up);

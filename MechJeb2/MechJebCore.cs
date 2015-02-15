@@ -311,20 +311,23 @@ namespace MuMech
                 }
             }
 
+            List<KeyValuePair<WaitCallback, object>> tmp;
             lock (callbacks)
             {
-                foreach (var c in callbacks)
-                {
-                    try
-                    {
-                        c.Key(c.Value);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogException(e);
-                    }
-                }
+                tmp = new List<KeyValuePair<WaitCallback, object>>(callbacks);
                 callbacks.Clear();
+            }
+
+            foreach (var c in tmp)
+            {
+                try
+                {
+                    c.Key(c.Value);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
             }
         }
 

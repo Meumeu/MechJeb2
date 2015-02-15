@@ -31,7 +31,8 @@ namespace MuMech
         public ReentryResult prediction;
         public double BurnUt = double.NaN;
         public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
-        public double maxSimulationAge = 2;
+        public const double defaultMaxSimulationAge = 2;
+        public double maxSimulationAge;
 
         MechJebModuleLandingPredictions predictor;
 
@@ -51,6 +52,7 @@ namespace MuMech
             }
         }
 
+        // FIXME: fix the altitude in the simulator postprocessing instead of here
         public double LandingAltitude // The altitude above sea level of the terrain at the landing site
         {
             get
@@ -76,6 +78,7 @@ namespace MuMech
             }
         }
 
+        // FIXME: fix the altitude in the simulator postprocessing instead of here
         public Vector3d LandingSite // The current position of the landing site
         {
             get
@@ -132,11 +135,12 @@ namespace MuMech
         {
             core.attitude.users.Add(this);
             core.thrust.users.Add(this);
-            core.landing.maxSimulationAge = 2;
+            maxSimulationAge = defaultMaxSimulationAge;
         }
 
         public void StopLanding()
         {
+            core.thrust.ThrustOff();
             this.users.Clear();
         }
 

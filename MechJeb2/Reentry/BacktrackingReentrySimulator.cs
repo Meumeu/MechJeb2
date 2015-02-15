@@ -130,7 +130,7 @@ namespace MuMech
 			if (time > dt && maxUt - time > minUt + dt)
 				burnUt = Math.Max(maxUt - time, minUt);
 			else
-				burnUt = (minUt + maxUt) /2;
+				burnUt = (minUt + maxUt) / 2;
 			StartSimulation();
 
 		}

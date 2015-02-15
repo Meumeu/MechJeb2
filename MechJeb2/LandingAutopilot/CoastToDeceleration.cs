@@ -10,6 +10,7 @@ namespace MuMech
         {
             public CoastToDeceleration(MechJebCore core) : base(core)
             {
+                core.thrust.targetThrottle = 0;
                 if (core.landing.useRCS && core.landing.landAtTarget)
                     core.rcs.enabled = true;
             }
@@ -43,7 +44,6 @@ namespace MuMech
                 }
                 else
                 {
-                    core.warp.MinimumWarp();
                     core.rcs.SetWorldVelocityError(Vector3d.zero);
                     return new FinalDescent(core,
                         (core.landing.prediction as LandedReentryResult).trajectory,
@@ -58,6 +58,7 @@ namespace MuMech
 
                     Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
 
+                    // FIXME: adjust thresholds depending on maximum RCS thrust over vessel mass
                     if (deltaV.magnitude > 10)
                     {
                         core.rcs.enabled = false;
@@ -65,7 +66,6 @@ namespace MuMech
                     }
                     else if (core.landing.useRCS)
                     {
-                        // FIXME: adjust thresholds depending on maximum RCS thrust over vessel mass
                         if (deltaV.magnitude > 3 || (core.landing.LandingBurnReady && timeToDecelerationBurn < 30 && deltaV.magnitude > 1))
                             core.rcs.enabled = true;
                         else if (deltaV.magnitude < 0.5)
@@ -79,7 +79,7 @@ namespace MuMech
                         }
                         else
                         {
-                            core.landing.maxSimulationAge = 2;
+                            core.landing.maxSimulationAge = MechJebModuleLandingAutopilot.defaultMaxSimulationAge;
                             warpReadyCourseCorrection = true;
                         }
 
@@ -108,7 +108,7 @@ namespace MuMech
 
                     if (warpReadyAttitudeControl && warpReadyCourseCorrection && core.landing.LandingBurnReady)
                         core.warp.WarpRegularAtRate((float)(core.landing.BurnUt - Planetarium.GetUniversalTime()) / 10);
-                    else
+                    else if (!MuUtils.PhysicsRunning())
                         core.warp.MinimumWarp();
                 }
                 else

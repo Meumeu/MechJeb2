@@ -142,7 +142,7 @@ namespace MuMech
         {
             derivativeAct = omega * Kd;
 
-            // integral actíon + Anti Windup
+            // integral action + Anti Windup
             intAccum.x = (Math.Abs(derivativeAct.x) < 0.6 * max) ? intAccum.x + (error.x * Ki * TimeWarp.fixedDeltaTime) : 0.9 * intAccum.x;
             intAccum.y = (Math.Abs(derivativeAct.y) < 0.6 * max) ? intAccum.y + (error.y * Ki * TimeWarp.fixedDeltaTime) : 0.9 * intAccum.y;
             intAccum.z = (Math.Abs(derivativeAct.z) < 0.6 * max) ? intAccum.z + (error.z * Ki * TimeWarp.fixedDeltaTime) : 0.9 * intAccum.z;

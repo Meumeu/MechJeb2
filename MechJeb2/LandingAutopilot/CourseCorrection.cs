@@ -34,7 +34,7 @@ namespace MuMech
                 if (currentError < 150)
                 {
                     core.thrust.targetThrottle = 0;
-                    core.landing.maxSimulationAge = 2;
+                    core.landing.maxSimulationAge = MechJebModuleLandingAutopilot.defaultMaxSimulationAge;
                     return new CoastToDeceleration(core);
                 }
 
@@ -42,7 +42,7 @@ namespace MuMech
                 if (vesselState.parachuteDeployed)
                 {
                     core.thrust.targetThrottle = 0;
-                    core.landing.maxSimulationAge = 2;
+                    core.landing.maxSimulationAge = MechJebModuleLandingAutopilot.defaultMaxSimulationAge;
                     return new CoastToDeceleration(core);
                 }
 

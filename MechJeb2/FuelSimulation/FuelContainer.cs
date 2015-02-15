@@ -101,13 +101,10 @@ namespace MuMech
 				{
 					stacked.Add(i.attachedPart.GetInstanceID());
 				}
-				if (i != null && i.attachedPart != null &&
-					i.attachedPart == part.parent &&
-					i.nodeType == AttachNode.NodeType.Surface)
-				{
-					radialParent = i.attachedPart.GetInstanceID();
-				}
 			}
+
+			if (part.attachMode == AttachModes.SRF_ATTACH && part.parent != null)
+				radialParent = part.parent.GetInstanceID();
 		}
 
 		private void setupStage(Dictionary<Part, FuelContainer> nodes, Part p, int currentStage)

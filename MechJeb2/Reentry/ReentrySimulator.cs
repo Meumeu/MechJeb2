@@ -161,7 +161,9 @@ namespace MuMech
 			{
 				removeUnderground();
 				var abs = referenceFrame.ToAbsolute(state.pos, state.t);
-				this.result = new LandedReentryResult(abs, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
+				LandedReentryResult landed = new LandedReentryResult(abs, state.t, SurfaceVelocity(state.pos, state.vel).magnitude, referenceFrame);
+				landed.fixLandingRadius();
+				this.result = landed;
 			}
 			else
 			{

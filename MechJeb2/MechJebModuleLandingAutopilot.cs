@@ -52,7 +52,6 @@ namespace MuMech
             }
         }
 
-        // FIXME: fix the altitude in the simulator postprocessing instead of here
         public double LandingAltitude // The altitude above sea level of the terrain at the landing site
         {
             get
@@ -60,16 +59,7 @@ namespace MuMech
                 LandedReentryResult prediction = this.prediction as LandedReentryResult;
                 if (prediction != null)
                 {
-                    // Although we know the landingASL as it is in the prediction, we suspect that
-                    // it might sometimes be incorrect. So to check we will calculate it again here,
-                    // and if the two differ log an error. It seems that this terrain ASL calls when
-                    // made from the simulatiuon thread are regularly incorrect, but are OK when made
-                    // from this thread. At the time of writting (KSP0.23) there seem to be several
-                    // other things going wrong with he terrain system, such as visual glitches as
-                    // we as the occasional exceptions being thrown when calls to the CelestialBody
-                    // object are made. I suspect a bug or some sort - for now this hack improves
-                    // the landing results.
-                    return prediction.landingSite.body.TerrainAltitude(prediction.landingSite.latitude, prediction.landingSite.longitude);
+                    return prediction.landingSite.radius - prediction.landingSite.body.Radius;
                 }
                 else
                 {
@@ -78,14 +68,13 @@ namespace MuMech
             }
         }
 
-        // FIXME: fix the altitude in the simulator postprocessing instead of here
         public Vector3d LandingSite // The current position of the landing site
         {
             get
             {
                 LandedReentryResult prediction = this.prediction as LandedReentryResult;
                 return mainBody.GetWorldSurfacePosition(prediction.landingSite.latitude,
-                    prediction.landingSite.longitude, LandingAltitude);
+                    prediction.landingSite.longitude, prediction.landingSite.radius - prediction.landingSite.body.Radius);
             }
         }
 

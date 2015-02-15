@@ -41,6 +41,11 @@ namespace MuMech
 			}
 		}
 
+		public void fixLandingRadius()
+		{
+			landingSite.radius = frame.referenceBody.TerrainAltitude(landingSite.latitude, landingSite.longitude) + frame.referenceBody.Radius;
+		}
+
 		public AbsoluteVector landingSite;
 		public double touchdownTime;
 		public double touchdownSpeed;

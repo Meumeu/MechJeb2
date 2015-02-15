@@ -145,13 +145,14 @@ namespace MuMech
         [ValueInfoItem("Suicide burn countdown", InfoItem.Category.Misc)]
         public string SuicideBurnCountdown()
         {
-            try
-            {
-                return GuiUtils.TimeToDHMS(OrbitExtensions.SuicideBurnCountdown(orbit, vesselState, vessel));
-            }
-            catch
+            double t = OrbitExtensions.SuicideBurnCountdown(orbit, vesselState, vessel);
+            if (double.IsNaN(t))
             {
                 return "N/A";
+            }
+            else
+            {
+                return GuiUtils.TimeToDHMS(t);
             }
         }
 

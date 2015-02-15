@@ -518,6 +518,13 @@ namespace MuMech
                                 Vector3d.Dot(o.Prograde(UT), dV));
         }
 
+        public static Vector3d ManeuverNodeToDeltaVCoordinates(this Orbit o, double UT, Vector3d dV)
+        {
+            return o.RadialPlus(UT) * dV.x +
+                  -o.NormalPlus(UT) * dV.y +
+                   o.Prograde(UT) * dV.z;
+        }
+
         // Return the orbit of the parent body orbiting the sun
         public static Orbit TopParentOrbit(this Orbit orbit)
         {
@@ -533,7 +540,7 @@ namespace MuMech
 
         public static double SuicideBurnCountdown(Orbit orbit, VesselState vesselState, Vessel vessel)
         {
-            if (orbit.PeA > 0) throw new ArgumentException("SuicideBurnCountdown: periapsis is above the ground");
+            if (orbit.PeA > 0) return double.NaN;
 
             double angleFromHorizontal = 90 - Vector3d.Angle(-vessel.srf_velocity, vesselState.up);
             angleFromHorizontal = MuUtils.Clamp(angleFromHorizontal, 0, 90);

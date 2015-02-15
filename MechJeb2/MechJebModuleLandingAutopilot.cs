@@ -176,7 +176,7 @@ namespace MuMech
                     if (node != null && node.nextPatch != null)
                         o = node.nextPatch;
                 }
-                simulator = new BacktrackingReentrySimulator(vessel, orbit, touchdownSpeed.val);
+                simulator = new BacktrackingReentrySimulator(vessel, o, touchdownSpeed.val);
                 simulator.StartSimulation();
                 simulatorCreationUt = Planetarium.GetUniversalTime();
             }
@@ -201,16 +201,24 @@ namespace MuMech
         // course for the target
         public Vector3d ComputeCourseCorrection(bool allowPrograde)
         {
+            if (prediction is LandedReentryResult)
+                return ComputeCourseCorrection(allowPrograde, orbit, vesselState.time, prediction as LandedReentryResult);
+            else
+                return new Vector3d();
+        }
+
+        public Vector3d ComputeCourseCorrection(bool allowPrograde, Orbit o, double UT, LandedReentryResult landed)
+        {
             // actualLandingPosition is the predicted actual landing position
-            Vector3d actualLandingPosition = RotatedLandingSite - mainBody.position;
+            Vector3d actualLandingPosition = landed.WorldPosition - mainBody.position;
 
             // orbitLandingPosition is the point where our current orbit intersects the planet
             double endRadius = mainBody.Radius;
             Vector3d orbitLandingPosition;
-            if (orbit.PeR < endRadius)
-                orbitLandingPosition = orbit.SwappedRelativePositionAtUT(orbit.NextTimeOfRadius(vesselState.time, endRadius));
+            if (o.PeR < endRadius)
+                orbitLandingPosition = o.SwappedRelativePositionAtUT(o.NextTimeOfRadius(UT, endRadius));
             else
-                orbitLandingPosition = orbit.SwappedRelativePositionAtUT(orbit.NextPeriapsisTime(vesselState.time));
+                orbitLandingPosition = o.SwappedRelativePositionAtUT(o.NextPeriapsisTime(UT));
 
             // convertOrbitToActual is a rotation that rotates orbitLandingPosition on actualLandingPosition
             Quaternion convertOrbitToActual = Quaternion.FromToRotation(orbitLandingPosition, actualLandingPosition);
@@ -225,10 +233,10 @@ namespace MuMech
             for (int i = 0; i < 3; i++)
             {
                 const double perturbationDeltaV = 1; //warning: hard experience shows that setting this too low leads to bewildering bugs due to finite precision of Orbit functions
-                Orbit perturbedOrbit = orbit.PerturbedOrbit(vesselState.time, perturbationDeltaV * perturbationDirections[i]); //compute the perturbed orbit
+                Orbit perturbedOrbit = o.PerturbedOrbit(UT, perturbationDeltaV * perturbationDirections[i]); //compute the perturbed orbit
                 double perturbedLandingTime;
-                if (perturbedOrbit.PeR < endRadius) perturbedLandingTime = perturbedOrbit.NextTimeOfRadius(vesselState.time, endRadius);
-                else perturbedLandingTime = perturbedOrbit.NextPeriapsisTime(vesselState.time);
+                if (perturbedOrbit.PeR < endRadius) perturbedLandingTime = perturbedOrbit.NextTimeOfRadius(UT, endRadius);
+                else perturbedLandingTime = perturbedOrbit.NextPeriapsisTime(UT);
                 Vector3d perturbedLandingPosition = perturbedOrbit.SwappedRelativePositionAtUT(perturbedLandingTime); //find where it hits the planet
                 Vector3d landingDelta = perturbedLandingPosition - orbitLandingPosition; //find the difference between that and the original orbit's intersection point
                 landingDelta = convertOrbitToActual * landingDelta; //rotate that difference vector so that we can now think of it as starting at the actual landing position
@@ -243,7 +251,7 @@ namespace MuMech
             // into a position. We can't just get the current position of those coordinates, because the planet will
             // rotate during the descent, so we have to account for that.
             Vector3d desiredLandingPosition = mainBody.GetRelSurfacePosition(core.target.targetLatitude, core.target.targetLongitude, 0);
-            float bodyRotationAngleDuringDescent = (float)(360 * ((prediction as LandedReentryResult).touchdownTime - vesselState.time) / mainBody.rotationPeriod);
+            float bodyRotationAngleDuringDescent = (float)(360 * (landed.touchdownTime - vesselState.time) / mainBody.rotationPeriod);
             Quaternion bodyRotationDuringFall = Quaternion.AngleAxis(bodyRotationAngleDuringDescent, mainBody.angularVelocity.normalized);
             desiredLandingPosition = bodyRotationDuringFall * desiredLandingPosition;
 

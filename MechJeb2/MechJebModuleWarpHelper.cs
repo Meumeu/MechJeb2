@@ -123,14 +123,9 @@ namespace MuMech
                             break;
 
                         case WarpTarget.SuicideBurn:
-                            try
-                            {
                                 targetUT = OrbitExtensions.SuicideBurnCountdown(orbit, vesselState, vessel) + vesselState.time;
-                            }
-                            catch
-                            {
-                                warping = false;
-                            }
+                                if (double.IsNaN(targetUT))
+                                    warping = false;
                             break;
 
                         default:
@@ -155,14 +150,9 @@ namespace MuMech
 
             if (warpTarget == WarpTarget.SuicideBurn)
             {
-                try
-                {
-                    targetUT = OrbitExtensions.SuicideBurnCountdown(orbit, vesselState, vessel) + vesselState.time;
-                }
-                catch
-                {
+                targetUT = OrbitExtensions.SuicideBurnCountdown(orbit, vesselState, vessel) + vesselState.time;
+                if (double.IsNaN(targetUT))
                     warping = false;
-                }
             }
 
             double target = targetUT - leadTime;

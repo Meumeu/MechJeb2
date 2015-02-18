@@ -8,7 +8,7 @@ namespace MuMech
 	{
 		public class VesselSummary
 		{
-			public Dictionary<int, FuelContainer> nodes;
+			private Dictionary<int, FuelContainer> nodes;
 			private List<EngineSummary> engines;
 
 			public double fuelMass { get { return nodes.Sum(kv => kv.Value.fuelMass);}}
@@ -27,15 +27,17 @@ namespace MuMech
 
 			public IEnumerable<EngineSummary> activeEngines { get { return engines.Where(e => e.activeInStage(stage));}}
 
-			public VesselSummary(Vessel vessel)
+			public VesselSummary(Vessel vessel): this(vessel.parts, vessel.rootPart) {}
+
+			public VesselSummary(List<Part> parts, Part rootPart)
 			{
 				stage = Staging.lastStage;
-				Dictionary<Part, FuelContainer> nodes = vessel.parts.ToDictionary(p => p, p => new FuelContainer(p));
+				Dictionary<Part, FuelContainer> nodes = parts.ToDictionary(p => p, p => new FuelContainer(p));
 				this.nodes = new Dictionary<int, FuelContainer>();
-				foreach (CompoundPart p in vessel.parts.OfType<CompoundPart>())
+				foreach (CompoundPart p in parts.OfType<CompoundPart>())
 				{
 					if (p.Modules.OfType<CompoundParts.CModuleFuelLine>().Count() > 0
-						&& nodes.ContainsKey(p.target))
+						&& p.target != null && nodes.ContainsKey(p.target))
 						nodes[p.target].linkedParts.Add(p.parent.GetInstanceID());
 				}
 				// Keep useful parts
@@ -53,12 +55,11 @@ namespace MuMech
 						this.nodes[p.Key.GetInstanceID()] = p.Value;
 				}
 				// Setup stage number in each FuelContainer
-				nodes[vessel.rootPart].setupStage(nodes, vessel.rootPart, -1);
+				nodes[rootPart].setupStage(nodes, rootPart, -1);
 
 				engines = new List<EngineSummary>();
 				foreach(var p in nodes)
 				{
-					// Ignore sepratrons
 					if (p.Key.inverseStage == p.Value.decoupledInStage)
 						continue;
 					foreach(var e in p.Key.Modules.OfType<ModuleEngines>())
@@ -71,12 +72,42 @@ namespace MuMech
 				baseMass = new double[stage+1];
 				foreach (var p in nodes)
 				{
-					// Compute total mass - fuelMass to count deactivated resources (not in fuelMass)
-					baseMass[p.Value.decoupledInStage + 1] += p.Key.IsPhysicallySignificant() ? (p.Key.TotalMass() - p.Value.fuelMass) : 0;
+					// Launch clamps are after last stage
+					if (p.Value.decoupledInStage < stage)
+						// Compute total mass - fuelMass to count deactivated resources (not in fuelMass)
+						baseMass[p.Value.decoupledInStage + 1] += p.Key.IsPhysicallySignificant() ? (p.Key.TotalMass() - p.Value.fuelMass) : 0;
 				}
-				for (int i = stage - 1; i > 0 ; i--)
-					baseMass[i-1] += baseMass[i];
+				for (int i = 0; i < stage ; i++)
+					baseMass[i+1] += baseMass[i];
 				computeMass();
+			}
+
+			public List<int> GetTanks(int propellantId, int partId)
+			{
+				switch (PartResourceLibrary.Instance.GetDefinition(propellantId).resourceFlowMode)
+				{
+				case ResourceFlowMode.NO_FLOW:
+					if (nodes[partId].resourceMass[propellantId] > 0)
+						return new List<int>{partId};
+					return new List<int>();
+
+				case ResourceFlowMode.STAGE_PRIORITY_FLOW:
+				case ResourceFlowMode.ALL_VESSEL:
+					for (int i = stage + 1 ; i > -2; i--)
+					{
+						var res = nodes.Where(kv => kv.Value.decoupledInStage == i
+							&& kv.Value.resourceMass.ContainsKey(propellantId)
+							&& kv.Value.resourceMass[propellantId] > 0.05).Select( kv => kv.Key);
+						if (res.Count() > 0)
+							return res.ToList();
+					}
+					return new List<int>();
+				case ResourceFlowMode.STACK_PRIORITY_SEARCH:
+					return nodes[partId].GetTanks(propellantId, nodes, new HashSet<int>());
+				case ResourceFlowMode.NULL:
+					throw new NotImplementedException("Resource flow mode NULL not implemented");
+				}
+				throw new Exception("Unreachable");
 			}
 
 			public VesselSummary ApplyConsumption(Dictionary<ResourceIndex, double> rates, double time)
@@ -95,12 +126,12 @@ namespace MuMech
 					node.resourceMass = new Dictionary<int, double>(node.resourceMass);
 					double newMass = node.resourceMass[rate.Key.resourceId] - rate.Value * time;
 					node.resourceMass[rate.Key.resourceId] = Math.Max(0, newMass);
-					if (newMass <= 0)
+					if (newMass <= 0.05)
 						stateChanged = true;
 				}
-				computeMass();
+				res.computeMass();
 				if (stateChanged)
-					res.engines = engines.Select(e => e.updateTanks(this)).ToList();
+					res.engines = engines.Select(e => e.updateTanks(res)).ToList();
 				return res;
 			}
 
@@ -114,12 +145,12 @@ namespace MuMech
 			{
 				if (stage == 0)
 					return this;
-				stage--;
 				var res = (VesselSummary) this.MemberwiseClone();
+				res.stage -= 1;
 				// Remove decoupled FuelContainer objects
-				res.nodes = nodes.Where(kv => kv.Value.decoupledInStage < stage).ToDictionary(kv => kv.Key, kv => kv.Value);
+				res.nodes = nodes.Where(kv => kv.Value.decoupledInStage < res.stage).ToDictionary(kv => kv.Key, kv => kv.Value);
 				// Remove decoupled EngineSummary objects and update the tanks they take resources from
-				res.engines = engines.Where(e => res.nodes.ContainsKey(e.partId)).Select(e => e.updateTanks(this)).ToList();
+				res.engines = engines.Where(e => res.nodes.ContainsKey(e.partId)).Select(e => e.updateTanks(res)).ToList();
 				res.computeMass();
 				return res;
 			}
@@ -127,16 +158,14 @@ namespace MuMech
 			public bool AllowedToStage()
 			{
 				float pressure = 0;
-				if (stage == 0)
-					return false;
 
-				var engines = activeEngines;
-				// Allowed to stage if no engine is active, or none has fuel
+				var engines = activeEngines.ToList();
+				// Allowed to stage if no engine is active
 				if (engines.Count() == 0 || engines.All(e => e.depleted))
 					return true;
 
 				// Not allowed to decouple an active engine
-				if (engines.Any(e => nodes[e.partId].decoupledInStage == stage -1))
+				if (engines.Any(e => nodes[e.partId].decoupledInStage == stage -1 && ! e.depleted))
 					return false;
 
 				// Not allowed to decouple a tank containing a resource being used

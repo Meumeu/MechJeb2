@@ -7,14 +7,14 @@ namespace MuMech
 	public class EngineSummary
 	{
 		bool throttleLocked;
-		public readonly bool depleted;
+		public bool depleted { get ; private set;}
 		float minThrust;
 		float maxThrust;
 		float thrustPercentage;
 		float vacuumIsp;
 		float seaLevelIsp;
 		List<Propellant> propellants;
-		Dictionary<Propellant, List<FuelContainer>> resources;
+		Dictionary<Propellant, List<int>> resources;
 		public readonly int partId ;
 		int activationStage;
 
@@ -29,7 +29,7 @@ namespace MuMech
 			vacuumIsp = e.atmosphereCurve.Evaluate(0);
 			seaLevelIsp = e.atmosphereCurve.Evaluate(1);
 			activationStage = e.staged ? int.MaxValue : e.part.inverseStage;
-			depleted = setupTanks(vessel);
+			setupTanks(vessel);
 		}
 
 		public EngineSummary (ModuleEnginesFX e, FuelContainer.VesselSummary vessel)
@@ -43,7 +43,7 @@ namespace MuMech
 			vacuumIsp = e.atmosphereCurve.Evaluate(0);
 			seaLevelIsp = e.atmosphereCurve.Evaluate(1);
 			activationStage = e.staged ? int.MaxValue : e.part.inverseStage;
-			depleted = setupTanks(vessel);
+			setupTanks(vessel);
 		}
 
 		public float isp(float atmospheres)
@@ -63,12 +63,12 @@ namespace MuMech
 			double thrust = this.thrust(throttle);
 			var flow = new Dictionary<ResourceIndex, double>();
 			double ratioSum = resources.Sum (pair => pair.Key.ratio);
-			foreach (KeyValuePair<Propellant, List<FuelContainer>> pair in resources) {
+			foreach (var pair in resources) {
 				// KSP gravity is 9.82 m/s²
 				double rate = thrust * pair.Key.ratio / (9.82 * isp(pressure) * pair.Value.Count * ratioSum);
-				foreach (var part in pair.Value)
+				foreach (var partId in pair.Value)
 				{
-					flow[new ResourceIndex(pair.Key.id, part.partId)] = rate;
+					flow[new ResourceIndex(pair.Key.id, partId)] = rate;
 				}
 			}
 			return flow;
@@ -77,20 +77,20 @@ namespace MuMech
 		public EngineSummary updateTanks(FuelContainer.VesselSummary fuels)
 		{
 			var res = (EngineSummary)this.MemberwiseClone();
-			res.updateTanks(fuels);
+			res.setupTanks(fuels);
 			return res;
 		}
 
-		private bool setupTanks(FuelContainer.VesselSummary fuels)
+		private void setupTanks(FuelContainer.VesselSummary fuels)
 		{
 			// For each relevant propellant, get the list of tanks the engine will drain resources
 			resources = propellants.FindAll (
 				prop => PartResourceLibrary.Instance.GetDefinition (prop.id).density > 0 && prop.name != "IntakeAir")
 					.ToDictionary (
 				prop => prop,
-					prop => fuels.nodes[partId].GetTanks(prop.id, fuels.nodes, new HashSet<int> ()));
+					prop => fuels.GetTanks(prop.id, partId));
 
-			return resources.Any(p => p.Value.Count == 0);
+			depleted = resources.Any(p => p.Value.Count == 0);
 		}
 
 		public float thrust (float throttle)

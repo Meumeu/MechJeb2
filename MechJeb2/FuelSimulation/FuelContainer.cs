@@ -25,16 +25,17 @@ namespace MuMech
 
 		// Follows fuel flow for a given propellant (by name) and returns the list of parts from which resources
 		// will be drained
-		public List<FuelContainer> GetTanks(int propellantId, Dictionary<int,FuelContainer> availableNodes, HashSet<int> visitedTanks)
+
+		private List<int> GetTanks(int propellantId, Dictionary<int,FuelContainer> availableNodes, HashSet<int> visitedTanks)
 		{
 			if (PartResourceLibrary.Instance.GetDefinition(propellantId).resourceFlowMode == ResourceFlowMode.NO_FLOW)
 			{
-				if (resourceMass.ContainsKey(propellantId) && resourceMass[propellantId] <= 0)
-					return new List<FuelContainer>();
-				return new List<FuelContainer> {this};
+				if (resourceMass.ContainsKey(propellantId) && resourceMass[propellantId] <= 0.05)
+					return new List<int>();
+				return new List<int> {this.partId};
 			}
 
-			List<FuelContainer> result = new List<FuelContainer>();
+			List<int> result = new List<int>();
 
 			// Rule 1
 			if (visitedTanks.Contains(partId))
@@ -68,12 +69,12 @@ namespace MuMech
 				return result;
 
 			// Rule 5
-			if (resourceMass.ContainsKey(propellantId) && resourceMass[propellantId] > 0)
-				return new List<FuelContainer> { this };
+			if (resourceMass.ContainsKey(propellantId) && resourceMass[propellantId] > 0.05)
+				return new List<int> { this.partId };
 
 			// Rule 6
-			if (resourceMass.ContainsKey(propellantId) && resourceMass[propellantId] <= 0)
-				return new List<FuelContainer>();
+			if (resourceMass.ContainsKey(propellantId) && resourceMass[propellantId] <= 0.05)
+				return new List<int>();
 
 			// Rule 7
 			if (fuelCrossFeed && radialParent.HasValue && availableNodes.ContainsKey(radialParent.Value))
@@ -82,7 +83,7 @@ namespace MuMech
 			}
 
 			// Rule 8
-			return new List<FuelContainer>();
+			return new List<int>();
 		}
 
 		private FuelContainer(Part part)

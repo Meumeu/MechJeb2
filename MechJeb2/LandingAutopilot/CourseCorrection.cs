@@ -31,28 +31,26 @@ namespace MuMech
 
                 double currentError = Vector3d.Distance(core.target.GetPositionTargetPosition(), core.landing.LandingSite);
 
-                if (currentError < 150)
-                {
-                    core.thrust.targetThrottle = 0;
-                    core.landing.maxSimulationAge = MechJebModuleLandingAutopilot.defaultMaxSimulationAge;
-                    return new CoastToDeceleration(core);
-                }
+                Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
+
+                double timeToDecelerationBurn = (core.landing.BurnUt - 2) - Planetarium.GetUniversalTime();
 
                 // If a parachute has already been deployed then we will not be able to control attitude anyway, so move back to the coast to deceleration step.
-                if (vesselState.parachuteDeployed)
+                if ((currentError < 150 && deltaV.magnitude < 2) ||
+                    vesselState.parachuteDeployed ||
+                    (core.landing.LandingBurnReady && timeToDecelerationBurn < 10))
                 {
                     core.thrust.targetThrottle = 0;
                     core.landing.maxSimulationAge = MechJebModuleLandingAutopilot.defaultMaxSimulationAge;
                     return new CoastToDeceleration(core);
                 }
 
-                Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
 
                 status = "Performing course correction of about " + deltaV.magnitude.ToString("F1") + " m/s";
 
                 core.attitude.attitudeTo(deltaV.normalized, AttitudeReference.INERTIAL, core.landing);
 
-                if (core.attitude.attitudeAngleFromTarget() < 2)
+                if (core.attitude.attitudeAngleFromTarget() < 5)
                     courseCorrectionBurning = true;
                 else if (core.attitude.attitudeAngleFromTarget() > 30)
                     courseCorrectionBurning = false;

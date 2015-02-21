@@ -54,14 +54,12 @@ namespace MuMech
                 // to correct the course as we will not have any attitude control anyway.
                 if (core.landing.landAtTarget && core.landing.PredictionReady && !core.landing.ParachutesDeployed())
                 {
-                    double currentError = Vector3d.Distance(core.target.GetPositionTargetPosition(), core.landing.LandingSite);
-
                     Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
 
                     // FIXME: adjust thresholds depending on maximum RCS thrust over vessel mass
-                    if (deltaV.magnitude > 10)
+                    if (deltaV.magnitude > 10 && (!core.landing.LandingBurnReady || timeToDecelerationBurn > 60))
                     {
-                        core.rcs.enabled = false;
+                        if (core.landing.useRCS) { core.rcs.enabled = false; }
                         return new CourseCorrection(core);
                     }
                     else if (core.landing.useRCS)

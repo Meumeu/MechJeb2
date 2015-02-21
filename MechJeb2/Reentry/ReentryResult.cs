@@ -49,8 +49,11 @@ namespace MuMech
 		public AbsoluteVector landingSite;
 		public double touchdownTime;
 		public double touchdownSpeed;
-		public Vector3d WorldPosition { get {
-				return frame.WorldPositionAtCurrentTime(landingSite);
+		public Vector3d WorldPosition
+		{
+			get
+			{
+				return landingSite.ToInertialPosition();
 			}
 		}
 
@@ -68,17 +71,15 @@ namespace MuMech
 	{
 		public AerobrakedReentryResult(AbsoluteVector pos, AbsoluteVector vel, ReferenceFrame f, double endUt)
 		{
-			this.frame = f;
 			this.pos = pos;
 			this.vel = vel;
 			this.endUt = endUt;
 		}
-		private ReferenceFrame frame;
 		private AbsoluteVector pos;
 		private AbsoluteVector vel;
 		public Orbit orbit { get
 			{
-				return MuUtils.OrbitFromStateVectors(frame.WorldPositionAtCurrentTime(pos), frame.WorldVelocityAtCurrentTime(vel), pos.body, endUt);
+				return MuUtils.OrbitFromStateVectors(pos.ToInertialPosition(), vel.ToInertialVelocity(), pos.body, endUt);
 			}
 		}
 		// Time when we leave the atmosphere
@@ -143,6 +144,36 @@ namespace MuMech
 		public double UT;
 		public CelestialBody body;
 		public double ASL { get { return radius - body.Radius;}}
+
+		//Interprets a given AbsoluteVector as a position, and returns the corresponding Vector3d position
+		//in world coordinates.
+		public Vector3d ToInertialPosition()
+		{
+			return body.position + ToInertialVelocity();
+		}
+
+		//Interprets a given AbsoluteVector as a velocity, and returns the corresponding Vector3d velocity
+		//in world coordinates.
+		public Vector3d ToInertialVelocity()
+		{
+			double now = Planetarium.GetUniversalTime();
+			double unrotatedLongitude = MuUtils.ClampDegrees360(longitude - 360 * (now - UT) / body.rotationPeriod);
+			return radius * body.GetSurfaceNVector(latitude, unrotatedLongitude);
+		}
+
+		//Interprets a given AbsoluteVector as a position, and returns the corresponding Vector3d position
+		//in world coordinates.
+		public Vector3d ToRotatingAxesPosition()
+		{
+			return body.position + ToRotatingAxesVelocity();
+		}
+
+		//Interprets a given AbsoluteVector as a velocity, and returns the corresponding Vector3d velocity
+		//in world coordinates.
+		public Vector3d ToRotatingAxesVelocity()
+		{
+			return radius * body.GetSurfaceNVector(latitude, longitude);
+		}
 	}
 
 	//A ReferenceFrame is a scheme for converting Vector3d positions and velocities into AbsoluteVectors, and vice versa
@@ -180,22 +211,6 @@ namespace MuMech
 			absolute.UT = UT;
 
 			return absolute;
-		}
-
-		//Interprets a given AbsoluteVector as a position, and returns the corresponding Vector3d position
-		//in world coordinates.
-		public Vector3d WorldPositionAtCurrentTime(AbsoluteVector absolute)
-		{
-			return referenceBody.position + WorldVelocityAtCurrentTime(absolute);
-		}
-
-		//Interprets a given AbsoluteVector as a velocity, and returns the corresponding Vector3d velocity
-		//in world coordinates.
-		public Vector3d WorldVelocityAtCurrentTime(AbsoluteVector absolute)
-		{
-			double now = Planetarium.GetUniversalTime();
-			double unrotatedLongitude = MuUtils.ClampDegrees360(absolute.longitude - 360 * (now - absolute.UT) / referenceBody.rotationPeriod);
-			return absolute.radius * referenceBody.GetSurfaceNVector(absolute.latitude, unrotatedLongitude);
 		}
 	}
 }

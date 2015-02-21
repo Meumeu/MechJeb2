@@ -30,7 +30,6 @@ namespace MuMech
         double simulatorCreationUt = 0;
         public ReentryResult prediction;
         public double BurnUt = double.NaN;
-        public List<KeyValuePair<AbsoluteVector, AbsoluteVector>> trajectory;
         public const double defaultMaxSimulationAge = 2;
         public double maxSimulationAge;
 

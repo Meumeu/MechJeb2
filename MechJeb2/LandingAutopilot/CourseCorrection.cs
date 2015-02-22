@@ -29,7 +29,9 @@ namespace MuMech
                     }
                 }
 
-                double currentError = Vector3d.Distance(core.target.GetPositionTargetPosition(), core.landing.LandingSite);
+                LandedReentryResult landed = core.landing.prediction as LandedReentryResult;
+                double currentError = Vector3d.Distance(mainBody.GetRelSurfacePosition(landed.landingSite.latitude, landed.landingSite.longitude, 0),
+                    mainBody.GetRelSurfacePosition(core.target.targetLatitude, core.target.targetLongitude, 0));
 
                 Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
 

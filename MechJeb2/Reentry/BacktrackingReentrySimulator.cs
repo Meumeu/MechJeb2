@@ -27,7 +27,7 @@ namespace MuMech
 			private set
 			{
 				#if DEBUG
-				Debug.Log(string.Format("New backtracking time: {0} (delta {1})",value, burnUt - value));
+				Debug.Log(string.Format("New backtracking time: {0}",value));
 				#endif
 				engineForce.startUT = value;
 				int startIdx = findIdxForUt(value - 5);

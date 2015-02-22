@@ -70,6 +70,7 @@ namespace MuMech
 
 		protected override void postProcessResult (object result)
 		{
+			// First simulation result are stored so we can start the next simulation without recalculating freefall
 			if (burnUt == double.MaxValue)
 			{
 				noBurnStates = states;
@@ -97,6 +98,7 @@ namespace MuMech
 				return;
 			}
 
+			// Burn later if we started going up before touching the ground
 			if (abs.radius > mainBody.Radius + alt)
 			{
 				minUt = burnUt;
@@ -120,6 +122,8 @@ namespace MuMech
 			maxUt = Math.Min(state.t, burnUt);
 
 			var svel = SurfaceVelocity(state.pos, state.vel);
+			// Termination condition: we touch the ground at most at requested speed
+			// If we have less than one time step to select burn UT, return the best value we have
 			if (svel.sqrMagnitude < targetTouchDownSpeed * targetTouchDownSpeed || maxUt - minUt <= dt)
 			{
 				LandedReentryResult landed = new LandedReentryResult(states, referenceFrame);
@@ -127,7 +131,7 @@ namespace MuMech
 				this.result = landed;
 				return;
 			}
-			// Force engine activation
+			// Force engine activation, for engineForce to work in initial state
 			engineForce.startUT = 0;
 			double thrust = engineForce.ComputeForce(states[0], mainBody).force.magnitude;
 			double gravity = new Gravity().ComputeForce(state, mainBody).force.magnitude;

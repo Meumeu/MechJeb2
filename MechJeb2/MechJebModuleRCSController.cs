@@ -14,13 +14,15 @@ namespace MuMech
         Vector3d lastAct = Vector3d.zero;
         Vector3d worldVelocityDelta = Vector3d.zero;
         Vector3d prev_worldVelocityDelta = Vector3d.zero;
+        Vector3d worldAcceleration = Vector3d.zero;
 
         enum ControlType
         {
             TARGET_VELOCITY,
             VELOCITY_ERROR,
             VELOCITY_TARGET_REL,
-            POSITION_TARGET_REL
+            POSITION_TARGET_REL,
+            ACCELERATION
         };
 
         ControlType controlType;
@@ -110,6 +112,12 @@ namespace MuMech
             controlType = ControlType.VELOCITY_TARGET_REL;
         }
 
+        public void SetWorldAcceleration(Vector3d accel)
+        {
+            worldAcceleration = accel;
+            controlType = ControlType.ACCELERATION;
+        }
+
         public override void Drive(FlightCtrlState s)
         {
             setPIDParameters();
@@ -140,10 +148,10 @@ namespace MuMech
                     break;
             }
 
-            // We work in local vessel coordinate
-            Vector3d velocityDelta = Quaternion.Inverse(vessel.GetTransform().rotation) * worldVelocityDelta;
 
-            if (!conserveFuel || (velocityDelta.magnitude > conserveThreshold))
+            if (!conserveFuel ||
+                (controlType != ControlType.ACCELERATION && worldVelocityDelta.magnitude > conserveThreshold) ||
+                (controlType == ControlType.ACCELERATION && worldAcceleration.magnitude > 0.001))
             {
                 if (!vessel.ActionGroups[KSPActionGroup.RCS])
                 {
@@ -152,36 +160,60 @@ namespace MuMech
 
                 Vector3d rcs = new Vector3d();
 
-                foreach (Vector6.Direction dir in Enum.GetValues(typeof(Vector6.Direction)))
+                // We work in local vessel coordinate
+                if (controlType == ControlType.ACCELERATION)
                 {
-                    double dirDv = Vector3d.Dot(velocityDelta, Vector6.directions[dir]);
-                    double dirAvail = vesselState.rcsThrustAvailable[dir]; 
-                    if (dirAvail  > 0 && Math.Abs(dirDv) > 0.001)
+                    Vector3d acceleration = Quaternion.Inverse(vessel.GetTransform().rotation) * worldAcceleration;
+                    foreach (Vector6.Direction dir in Enum.GetValues(typeof(Vector6.Direction)))
                     {
-                        double dirAction = dirDv / (dirAvail * TimeWarp.fixedDeltaTime / vesselState.mass);
-                        if (dirAction > 0)
+                        double dirAccel = Vector3d.Dot(acceleration, Vector6.directions[dir]);
+                        double dirAvail = vesselState.rcsThrustAvailable[dir]; 
+                        if (dirAvail > 0 && Math.Abs(dirAccel) > 0.001)
                         {
-                            rcs += Vector6.directions[dir] * dirAction;
+                            double dirAction = dirAccel / (dirAvail / vesselState.mass);
+                            if (dirAction > 0)
+                            {
+                                rcs += Vector6.directions[dir] * dirAction;
+                            }
                         }
                     }
                 }
-                                
-                Vector3d omega = Vector3d.zero;
-
-                switch (controlType)
+                else
                 {
-                    case ControlType.TARGET_VELOCITY:
-                        omega = Quaternion.Inverse(vessel.GetTransform().rotation) * (vessel.acceleration - vesselState.gravityForce);
-                        break;
+                    // We work in local vessel coordinate
+                    Vector3d velocityDelta = Quaternion.Inverse(vessel.GetTransform().rotation) * worldVelocityDelta;
 
-                    case ControlType.VELOCITY_TARGET_REL:
-                    case ControlType.VELOCITY_ERROR:
-                        omega = (worldVelocityDelta - prev_worldVelocityDelta) / TimeWarp.fixedDeltaTime;
-                        prev_worldVelocityDelta = worldVelocityDelta;
-                        break;
+                    foreach (Vector6.Direction dir in Enum.GetValues(typeof(Vector6.Direction)))
+                    {
+                        double dirDv = Vector3d.Dot(velocityDelta, Vector6.directions[dir]);
+                        double dirAvail = vesselState.rcsThrustAvailable[dir]; 
+                        if (dirAvail > 0 && Math.Abs(dirDv) > 0.001)
+                        {
+                            double dirAction = dirDv / (dirAvail * TimeWarp.fixedDeltaTime / vesselState.mass);
+                            if (dirAction > 0)
+                            {
+                                rcs += Vector6.directions[dir] * dirAction;
+                            }
+                        }
+                    }
+
+                    Vector3d omega = Vector3d.zero;
+
+                    switch (controlType)
+                    {
+                        case ControlType.TARGET_VELOCITY:
+                            omega = Quaternion.Inverse(vessel.GetTransform().rotation) * (vessel.acceleration - vesselState.gravityForce);
+                            break;
+
+                        case ControlType.VELOCITY_TARGET_REL:
+                        case ControlType.VELOCITY_ERROR:
+                            omega = (worldVelocityDelta - prev_worldVelocityDelta) / TimeWarp.fixedDeltaTime;
+                            prev_worldVelocityDelta = worldVelocityDelta;
+                            break;
+                    }
+
+                    rcs = pid.Compute(rcs, omega);
                 }
-
-                rcs = pid.Compute(rcs, omega);
 
                 // Disabled the low pass filter for now. Was doing more harm than good
                 //rcs = lastAct + (rcs - lastAct) * (1 / ((Tf / TimeWarp.fixedDeltaTime) + 1));

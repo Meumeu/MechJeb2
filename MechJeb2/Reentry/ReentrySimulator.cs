@@ -13,11 +13,11 @@ namespace MuMech
 			dState ComputeForce(ReentrySimulatorState st, CelestialBody mainBody);
 		}
 
-		ReentrySimulatorState PropagateState(Vessel vessel, Orbit orbit, double UT)
+		ReentrySimulatorState PropagateState(FuelContainer.VesselSummary vesselSummary, Orbit orbit, double UT)
 		{
 			var pos = orbit.SwappedRelativePositionAtUT(UT);
 			var vel = orbit.SwappedOrbitalVelocityAtUT(UT);
-			return new ReentrySimulatorState(vessel, pos, vel, UT);
+			return new ReentrySimulatorState(pos, vel, UT, vesselSummary);
 		}
 
 		public ReentrySimulator(Vessel vessel, Orbit orbit)
@@ -26,7 +26,8 @@ namespace MuMech
 			referenceFrame = new ReferenceFrame(mainBody);
 			double startUt = Math.Max(orbit.StartUT, Planetarium.GetUniversalTime());
 			states = new List<ReentrySimulatorState>();
-			states.Add(PropagateState(vessel, orbit, startUt));
+			var vesselSummary = new FuelContainer.VesselSummary(vessel);
+			states.Add(PropagateState(vesselSummary, orbit, startUt));
 
 			// default forces
 			forces.Add(new Gravity());
@@ -47,7 +48,7 @@ namespace MuMech
 				if (startUt > minSimulationUt)
 					break;
 
-				var st = PropagateState(vessel, orbit, startUt);
+				var st = PropagateState(vesselSummary, orbit, startUt);
 				if (st.pos.magnitude > minRadius)
 					states.Add(st);
 				else

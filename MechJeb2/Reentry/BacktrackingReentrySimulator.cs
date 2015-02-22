@@ -73,9 +73,8 @@ namespace MuMech
 			if (burnUt == double.MaxValue)
 			{
 				noBurnStates = states;
-				var firstDescending = states.FirstOrDefault(st => Vector3d.Dot(st.pos, st.vel) <0);
-				if (firstDescending != null)
-					minUt = firstDescending.t;
+				// In case we are going up, do not burn before we have reached "apoapsis"
+				minUt = Math.Max(states.FirstOrDefault(st => Vector3d.Dot(st.pos, st.vel) <0).t, minUt);
 			}
 
 			var abs = referenceFrame.ToAbsolute(state.pos, state.t);

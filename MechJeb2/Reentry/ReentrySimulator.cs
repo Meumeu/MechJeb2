@@ -13,15 +13,20 @@ namespace MuMech
 			dState ComputeForce(ReentrySimulatorState st, CelestialBody mainBody);
 		}
 
+		ReentrySimulatorState PropagateState(Vessel vessel, Orbit orbit, double UT)
+		{
+			var pos = orbit.SwappedRelativePositionAtUT(UT);
+			var vel = orbit.SwappedOrbitalVelocityAtUT(UT);
+			return new ReentrySimulatorState(vessel, pos, vel, UT);
+		}
+
 		public ReentrySimulator(Vessel vessel, Orbit orbit)
 		{
 			this.mainBody = orbit.referenceBody;
 			referenceFrame = new ReferenceFrame(mainBody);
 			double startUt = Math.Max(orbit.StartUT, Planetarium.GetUniversalTime());
-			var pos = orbit.SwappedRelativePositionAtUT(startUt);
-			var vel = orbit.SwappedOrbitalVelocityAtUT(startUt);
 			states = new List<ReentrySimulatorState>();
-			states.Add(new ReentrySimulatorState(vessel, pos, vel, startUt));
+			states.Add(PropagateState(vessel, orbit, startUt));
 
 			// default forces
 			forces.Add(new Gravity());
@@ -30,6 +35,24 @@ namespace MuMech
 
 			minSimulationUt = orbit.NextPeriapsisTime(startUt);
 
+			// Propagate the trajectory until the first of these conditions is met:
+			// * the vessel is in the atmosphere
+			// * the vessel altitude is lower than 10km
+			// * the vessel reaches the periapsis
+			double minRadius = Math.Max(orbit.referenceBody.RealMaxAtmosphereAltitude(), 10000) + orbit.referenceBody.Radius;
+
+			while(true)
+			{
+				startUt += 120;
+				if (startUt > minSimulationUt)
+					break;
+
+				var st = PropagateState(vessel, orbit, startUt);
+				if (st.pos.magnitude > minRadius)
+					states.Add(st);
+				else
+					break;
+			}
 		}
 
 		public void StartSimulation()

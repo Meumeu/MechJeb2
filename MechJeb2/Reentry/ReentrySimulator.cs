@@ -21,7 +21,7 @@ namespace MuMech
 			var pos = orbit.SwappedRelativePositionAtUT(startUt);
 			var vel = orbit.SwappedOrbitalVelocityAtUT(startUt);
 			states = new List<ReentrySimulatorState>();
-			states.Add(new ReentrySimulatorState(vessel, pos, vel, startUt));
+			states.Add(new ReentrySimulatorState(pos, vel, startUt, new FuelContainer.VesselSummary(vessel)));
 
 			// default forces
 			forces.Add(new Gravity());

@@ -22,7 +22,6 @@ namespace MuMech
 
         //internal data:
         private bool simulationRunning { get { return simulator != null && simulator.result == null;}}
-        private long millisecondsBetweenSimulations;
 
         public ReentrySimulator simulator = null;
 

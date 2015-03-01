@@ -31,21 +31,19 @@ namespace MuMech
                     }
                 }
 
-                double timeToDecelerationBurn = (core.landing.BurnUt - 2) - Planetarium.GetUniversalTime();
-
                 // Transition into the final decent step 5s before the suicide burn
                 if (!core.landing.LandingBurnReady)
                 {
                     status = "Computing landing burn";
                 }
-                else if (timeToDecelerationBurn > 0)
+                else if (core.landing.TimeToLandingBurn > 0)
                 {
-                    status = "Landing burn in " + GuiUtils.TimeToDHMS(timeToDecelerationBurn, 1);
+                    status = "Suicide burn in " + GuiUtils.TimeToDHMS(core.landing.TimeToLandingBurn, 1);
                 }
                 else
                 {
                     core.rcs.SetWorldVelocityError(Vector3d.zero);
-                    return new FinalDescent(core,
+                    return new SuicideBurn(core,
                         (core.landing.prediction as LandedReentryResult).trajectory,
                         (core.landing.prediction as LandedReentryResult).frame);
                 }
@@ -57,14 +55,14 @@ namespace MuMech
                     Vector3d deltaV = core.landing.ComputeCourseCorrection(true);
 
                     // FIXME: adjust thresholds depending on maximum RCS thrust over vessel mass
-                    if (deltaV.magnitude > 10 && (!core.landing.LandingBurnReady || timeToDecelerationBurn > 60))
+                    if (deltaV.magnitude > 10 && (!core.landing.LandingBurnReady || core.landing.TimeToLandingBurn > 60))
                     {
                         if (core.landing.useRCS) { core.rcs.enabled = false; }
                         return new CourseCorrection(core);
                     }
                     else if (core.landing.useRCS)
                     {
-                        if (deltaV.magnitude > 3 || (core.landing.LandingBurnReady && timeToDecelerationBurn < 30 && deltaV.magnitude > 1))
+                        if (deltaV.magnitude > 3 || (core.landing.LandingBurnReady && core.landing.TimeToLandingBurn < 30 && deltaV.magnitude > 1))
                             core.rcs.enabled = true;
                         else if (deltaV.magnitude < 0.5)
                             core.rcs.enabled = false;
@@ -93,25 +91,29 @@ namespace MuMech
                 {
                     if (vesselState.altitudeASL < mainBody.RealMaxAtmosphereAltitude())
                     {
-                        core.attitude.attitudeTo(Vector3d.back, AttitudeReference.SURFACE_VELOCITY, core.landing);
+                        Vector3d dir = MechJebModuleLandingAutopilot.ThrustDirection(vesselState.CoM - mainBody.position, vesselState.surfaceVelocity);
+                        core.attitude.attitudeTo(dir, AttitudeReference.INERTIAL, core.landing);
                     }
                     else if (core.landing.LandingBurnReady)
                     {
                         double atmosphereEntryUT = orbit.NextTimeOfRadius(Planetarium.GetUniversalTime(), mainBody.Radius + mainBody.RealMaxAtmosphereAltitude());
-                        double warpEndUT = Math.Min(core.landing.BurnUt, atmosphereEntryUT);
+                        double warpEndUT = Math.Min(core.landing.BurnUt - MechJebModuleLandingAutopilot.LandingBurnMargin, atmosphereEntryUT);
 
+                        Vector3d pos = orbit.SwappedRelativePositionAtUT(warpEndUT);
                         Vector3d svel = orbit.SwappedOrbitalVelocityAtUT(warpEndUT) - mainBody.getRFrmVel(orbit.SwappedAbsolutePositionAtUT(warpEndUT));
-                        core.attitude.attitudeTo(-svel.normalized, AttitudeReference.INERTIAL, core.landing);
+                        Vector3d dir = MechJebModuleLandingAutopilot.ThrustDirection(pos, svel);
+                        core.attitude.attitudeTo(dir, AttitudeReference.INERTIAL, core.landing);
                     }
 
                     if (warpReadyAttitudeControl && warpReadyCourseCorrection && core.landing.LandingBurnReady)
-                        core.warp.WarpRegularAtRate((float)(core.landing.BurnUt - Planetarium.GetUniversalTime()) / 10);
+                        core.warp.WarpRegularAtRate((float)core.landing.TimeToLandingBurn / 10);
                     else if (!MuUtils.PhysicsRunning())
                         core.warp.MinimumWarp();
                 }
                 else
                 {
-                    core.attitude.attitudeTo(Vector3d.back, AttitudeReference.SURFACE_VELOCITY, core.landing);
+                    Vector3d dir = MechJebModuleLandingAutopilot.ThrustDirection(vesselState.CoM - mainBody.position, vesselState.surfaceVelocity);
+                    core.attitude.attitudeTo(dir, AttitudeReference.INERTIAL, core.landing);
                 }
 
                 return this;

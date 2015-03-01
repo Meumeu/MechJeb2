@@ -27,7 +27,6 @@ namespace MuMech
 
         //Landing prediction data:
         BacktrackingReentrySimulator simulator;
-        double simulatorCreationUt = 0;
         public ReentryResult prediction;
         public double BurnUt = double.NaN;
         public const double defaultMaxSimulationAge = 2;
@@ -74,6 +73,16 @@ namespace MuMech
                 LandedReentryResult prediction = this.prediction as LandedReentryResult;
                 return mainBody.GetWorldSurfacePosition(prediction.landingSite.latitude,
                     prediction.landingSite.longitude, prediction.landingSite.radius - prediction.landingSite.body.Radius);
+            }
+        }
+
+        public const double LandingBurnMargin = 2;
+
+        public double TimeToLandingBurn
+        {
+            get
+            {
+                return BurnUt - LandingBurnMargin - Planetarium.GetUniversalTime();
             }
         }
 
@@ -149,37 +158,6 @@ namespace MuMech
             if (!active)
                 return;
 
-            // If the latest prediction is a landing, aerobrake or no-reentry prediciton then keep it.
-            // However if it is any other sort or result it is not much use to us, so do not bother!
-
-            if (simulator != null && simulator.result != null)
-            {
-                if (simulator.result is LandedReentryResult || simulator.result is AerobrakedReentryResult || simulator.result is NoReentryResult)
-                {
-                    prediction = simulator.result;
-                    predictor.result = simulator.result;
-                    BurnUt = simulator.burnUt;
-                }
-
-                Debug.Log("Simulation result available: " + simulator.result);
-                simulator = null;
-            }
-            if (simulator == null && Planetarium.GetUniversalTime() - simulatorCreationUt > maxSimulationAge)
-            {
-                Debug.Log("Starting reentry simulation");
-
-                Orbit o = orbit;
-                if (vessel.patchedConicSolver.maneuverNodes.Count > 0)
-                {
-                    var node = vessel.patchedConicSolver.maneuverNodes.Last(n => n != core.GetComputerModule<MechJebModuleLandingPredictions>().aerobrakeNode);
-                    if (node != null && node.nextPatch != null)
-                        o = node.nextPatch;
-                }
-                simulator = new BacktrackingReentrySimulator(vessel, o, touchdownSpeed.val);
-                simulator.StartSimulation();
-                simulatorCreationUt = Planetarium.GetUniversalTime();
-            }
-
             // Consider lowering the langing gear
             {
                 double minalt = Math.Min(vesselState.altitudeBottom, Math.Min(vesselState.altitudeASL, vesselState.altitudeTrue));
@@ -192,8 +170,42 @@ namespace MuMech
 
         public override void OnFixedUpdate()
         {
-            base.OnFixedUpdate();
+            if (!active)
+                return;
+
             DeployParachutes();
+
+            // If the latest prediction is a landing, aerobrake or no-reentry prediciton then keep it.
+            // However if it is any other sort or result it is not much use to us, so do not bother!
+            if (simulator != null && simulator.result != null)
+            {
+                if (simulator.result is LandedReentryResult || simulator.result is AerobrakedReentryResult || simulator.result is NoReentryResult)
+                {
+                    prediction = simulator.result;
+                    predictor.result = simulator.result;
+                    BurnUt = simulator.burnUt;
+                }
+
+                Debug.Log("Simulation result available: " + simulator.result);
+                simulator = null;
+            }
+
+            if (simulator == null && (prediction == null || prediction.age > maxSimulationAge))
+            {
+                Debug.Log("Starting reentry simulation");
+
+                Orbit o = orbit;
+                if (vessel.patchedConicSolver.maneuverNodes.Count > 0)
+                {
+                    var node = vessel.patchedConicSolver.maneuverNodes.Last(n => n != core.GetComputerModule<MechJebModuleLandingPredictions>().aerobrakeNode);
+                    if (node != null && node.nextPatch != null)
+                        o = node.nextPatch;
+                }
+                simulator = new BacktrackingReentrySimulator(vessel, o, touchdownSpeed.val);
+                simulator.StartSimulation();
+            }
+
+            base.OnFixedUpdate();
         }
 
         // Estimate the delta-V of the correction burn that would be required to put us on
@@ -441,6 +453,24 @@ namespace MuMech
         public double MinAltitude()
         {
             return Math.Min(vesselState.altitudeBottom, Math.Min(vesselState.altitudeASL, vesselState.altitudeTrue));
+        }
+
+        public static Vector3d ThrustDirection(Vector3d pos, Vector3d svel)
+        {
+            // Compute thrust direction
+            Vector3d up = pos.normalized;
+            double svelUp = Vector3d.Dot(up, svel);
+
+            if (svelUp >= 0 || svel.sqrMagnitude < 1)
+                // Well, we are going up... keep going up
+                return up;
+            else
+            {
+                Vector3d svelHoriz = Vector3d.Exclude(up, svel);
+
+                Vector3d accHoriz = 1.5 * svelHoriz * svelHoriz.sqrMagnitude / (10 + svelHoriz.sqrMagnitude);
+                return -(accHoriz + up * svelUp).normalized;
+            }
         }
     }
 }

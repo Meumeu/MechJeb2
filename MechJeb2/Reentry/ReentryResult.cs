@@ -3,7 +3,15 @@ using System.Collections.Generic;
 
 namespace MuMech
 {
-	public class ReentryResult {}
+	public class ReentryResult
+    {
+        System.Diagnostics.Stopwatch stopwatch;
+        public double age { get { return stopwatch.ElapsedMilliseconds / 1000.0; } }
+        public ReentryResult()
+        {
+            stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        }
+    }
 
 	public struct TrajectoryPoint
 	{

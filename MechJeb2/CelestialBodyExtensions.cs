@@ -27,7 +27,7 @@ namespace MuMech
 
         public static double DragLength(this CelestialBody body, double altitudeASL, double dragCoeff, double mass)
         {
-            return body.DragLength(body.GetWorldSurfacePosition(0, 0, altitudeASL), dragCoeff, mass);
+            return body.DragLength(body.GetWorldSurfacePosition(0, 0, altitudeASL) - body.position, dragCoeff, mass);
         }
 
         public static double RealMaxAtmosphereAltitude(this CelestialBody body)
@@ -58,5 +58,12 @@ namespace MuMech
             return (upperAlt + lowerAlt) * 0.5;
         }
 
+        // Stock version throws an IndexOutOfRangeException when the body biome map is not defined
+        public static string GetExperimentBiomeSafe(this CelestialBody body, double lat, double lon)
+        {
+            if (body.BiomeMap == null || body.BiomeMap.Attributes.Length == 0)
+                return string.Empty;
+            return ScienceUtil.GetExperimentBiome(body, lat, lon);
+        }
     }
 }
